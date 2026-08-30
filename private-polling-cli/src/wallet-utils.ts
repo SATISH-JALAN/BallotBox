@@ -29,6 +29,17 @@ export const getInitialUnshieldedState = async (
   return Rx.firstValueFrom(wallet.state);
 };
 
+/**
+ * `JSON.stringify` replacer that renders `bigint` values as strings.
+ *
+ * `JSON.stringify` throws `TypeError: Do not know how to serialize a BigInt` on raw
+ * bigints, and every wallet balance is one. Declaring `value` as `unknown` rather than
+ * relying on the inferred `any` keeps the return type checked — an inline arrow here
+ * trips `@typescript-eslint/no-unsafe-return`.
+ */
+const bigintReplacer = (_key: string, value: unknown): unknown =>
+  typeof value === 'bigint' ? value.toString() : value;
+
 const isProgressStrictlyComplete = (progress: unknown): boolean => {
   if (!progress || typeof progress !== 'object') {
     return false;
@@ -106,7 +117,7 @@ export const waitForUnshieldedFunds = async (
         emissionsCount++;
         const balance = state.unshielded.balances[tokenType.raw] ?? 0n;
         logger.info(
-          `Wallet funds state emission #${emissionsCount}: balances=${JSON.stringify(state.unshielded.balances, (k, v) => (typeof v === 'bigint' ? v.toString() : v))}, balance=${balance.toString()}, synced=${isFacadeStateSynced(state)}`,
+          `Wallet funds state emission #${emissionsCount}: balances=${JSON.stringify(state.unshielded.balances, bigintReplacer)}, balance=${balance.toString()}, synced=${isFacadeStateSynced(state)}`,
         );
       }),
       Rx.throttleTime(throttleTime),
