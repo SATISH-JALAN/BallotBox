@@ -62,3 +62,5 @@ managed/
 
 .claude
 .midnight-expert
+# Local working docs (design notes, submission drafts)
+docs/
