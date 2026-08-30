@@ -22,46 +22,86 @@ CONTRACT_ADDRESS=0200dbf964f541e1950883f5b2f539b66fd6111e46ce8e6e9551fbdd180114d
 
 ## Features
 
-- 🗳️ **Private Voting** — Cast Yes, No, or Abstain votes protected by Zero-Knowledge proofs
-- 🔒 **Identity Protection** — Voters prove eligibility without revealing their identity or secret key
-- 📊 **Transparent Tallies** — Public ledger tracks aggregate vote counts in real time
-- 👑 **Creator Controls** — Only the poll creator can close polls, verified via ZK proof
-- 🌐 **Web UI** — Modern React interface with live vote bars and wallet integration
+- 🗳️ **On-chain polls** — Create a poll, cast Yes / No / Abstain, close it, all on Midnight
+- 📊 **Transparent tallies** — Public ledger tracks aggregate vote counts in real time
+- 👑 **Creator controls** — Only the poll creator can close a poll, verified via ZK proof of a
+  secret key that never leaves the device
+- 🔑 **Keys stay local** — Secret keys are held in private state and proven, never transmitted
+- 🌐 **Web UI** — React interface with live vote bars and wallet integration
 - 💻 **CLI** — Command-line tool for deploying and interacting with polls directly
+
+> ⚠️ **Ballot secrecy is not implemented yet.** Vote choices are currently public, there is
+> no double-vote protection, and there is no eligibility gate. See
+> [Known limitations](#known-limitations).
 
 ---
 
 ## What This Project Does
 
-Private Polling lets users run decentralized, transparent polls while keeping individual votes completely private.
+Private Polling runs decentralized polls on Midnight, with the goal of anonymous ballots and
+publicly verifiable tallies.
 
-In traditional voting systems, you either trust a centralized server or make your vote public on a blockchain. Private Polling solves this using Midnight's ZK-proof architecture:
+In traditional voting systems you either trust a centralized server, or you make your vote
+public on a blockchain. The end state for this project is neither — but it is worth being
+precise about how far along it is.
+
+**How a poll works today:**
 
 1. A user deploys the contract and creates a poll with a question
 2. Participants connect their Midnight wallet and cast votes (Yes / No / Abstain)
-3. The Midnight circuit generates a ZK proof **locally on the voter's device**
-4. The proof proves a valid vote was cast without linking the voter's identity to the choice
-5. Aggregate vote totals update on-chain for everyone to verify
+3. The Midnight proof server generates a ZK proof for the transaction
+4. Aggregate vote totals update on-chain for everyone to verify
+
+**What the ZK layer covers today:** the poll creator's secret key stays on-device and
+`closePoll` is authorised by proving a hash of it, so creator authentication is genuinely
+zero-knowledge.
+
+**What it does not cover yet:** the *ballot* itself. `castVote` discloses the choice, so
+step 2 is public. Making it private — plus adding one-vote-per-person and an eligibility
+gate — is the Level 4 work described in [`PRIVACY.md`](./PRIVACY.md).
 
 ---
 
 ## Privacy Model
 
-| Data | Visibility |
+> **Read this before trusting the app with a real vote.** The table below describes what
+> the contract does *today* (Levels 1–3). Ballot secrecy is **not** yet implemented — see
+> [Known limitations](#known-limitations) and [`PRIVACY.md`](./PRIVACY.md).
+
+| Data | Visibility today |
 |------|-----------|
 | Poll question | ✅ Public |
 | Poll status (Open / Closed) | ✅ Public |
 | Vote counts (Yes / No / Abstain) | ✅ Public |
 | Poll creator (hashed) | ✅ Public |
-| **Individual vote choice** | ❌ Private — never recorded on-chain |
-| **Voter identity** | ❌ Private — proven via ZK, not disclosed |
-| **Secret key** | ❌ Private — never leaves the device |
+| **Individual vote choice** | ⚠️ **Public** — `castVote` passes `choice` through `disclose()` |
+| **Voter identity** | ⚠️ Not proven or protected — no eligibility check exists |
+| Poll creator's secret key | ❌ Private — never leaves the device |
+| Voter's secret key | ❌ Private — never leaves the device |
 
-### ZK Proof Guarantees
+### What the ZK layer actually guarantees today
 
-- Voters prove they possess a valid secret key using the `localSecretKey()` witness — without disclosing it
-- Poll creators prove ownership via `derivedPublicKey()` inside ZK circuits — without revealing the underlying key
-- Only public inputs/outputs are disclosed using Compact's explicit `disclose()` operator
+- The poll creator's secret key never leaves the device; ownership is proven via the
+  `derivedPublicKey()` hash inside a ZK circuit, so `closePoll` is authenticated without
+  revealing the key.
+- Compact's explicit `disclose()` operator marks every value that becomes public, which
+  makes the privacy boundary auditable by reading the source.
+
+### Known limitations
+
+These are real gaps in the current contract, not hypotheticals — each is pinned by a test
+in [`contract/src/test/private-polling.test.ts`](./contract/src/test/private-polling.test.ts)
+under *"known limitations — Level 4 scope"*.
+
+| Gap | Cause | Consequence |
+|-----|-------|-------------|
+| Vote choices are public | `castVote` calls `disclose(choice)` | Anyone reading the transaction sees how you voted |
+| No double-vote protection | No nullifier is recorded | One person can vote an unlimited number of times |
+| No eligibility gate | `castVote` checks no identity | Anyone with the contract address can vote |
+
+Closing all three is the scope of Level 4 — via Merkle-based eligibility proofs,
+nullifiers, and homomorphic tallying. See [`PRIVACY.md`](./PRIVACY.md) for the threat
+model and the target design.
 
 ---
 
@@ -202,7 +242,11 @@ The suite (`contract/src/test/private-polling.test.ts`) covers:
 - **Identity hashing** — `derivedPublicKey` is deterministic for a given secret key and differs across secret keys, so no two voters can be linked to the same identity hash.
 - **Initial state** — a freshly deployed contract starts `CLOSED` with no question and zeroed tallies.
 - **`createPoll`** — opens the poll, stores the question, and discloses only the hashed owner (never the raw secret key); rejects opening a second poll while one is already open.
-- **`castVote`** — tallies Yes/No/Abstain choices into public counters without recording which voter cast which vote; rejects out-of-range choices and votes after the poll is closed.
+- **`castVote`** — tallies Yes/No/Abstain choices into public counters; rejects out-of-range choices and votes after the poll is closed.
+- **Known limitations** — a dedicated block asserts the three gaps documented under
+  [Known limitations](#known-limitations): repeat voting by one key is accepted, an
+  unenrolled key may vote, and a single ballot is fully identifiable from the public
+  counters. These pass today by design, and the Level 4 rewrite must change them.
 - **`closePoll`** — only succeeds for the secret key that matches the poll's disclosed owner hash; a different key is rejected.
 
 This runs as part of CI (`npm run ci` inside `contract/`, wired into [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml)) on every push and pull request to `main`.
