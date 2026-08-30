@@ -155,3 +155,55 @@ describe("private-polling contract", () => {
     );
   });
 });
+
+/**
+ * These tests document behaviour the current contract *does* exhibit but that a real
+ * anonymous ballot must not. They are deliberately written as passing assertions of the
+ * status quo, so that the Level 4 rewrite (Merkle eligibility + nullifiers + undisclosed
+ * ballots) has to change them — a silent regression back to today's model would fail here.
+ *
+ * See docs/LEVEL-4-IDEA-SUBMISSION.md for the design that closes these.
+ */
+describe("known limitations — Level 4 scope", () => {
+  const contract = new Contract(witnesses);
+
+  it("GAP: the same voter can vote repeatedly, because there is no nullifier", () => {
+    const context = deploy(secretKey(1));
+    const afterCreate = contract.impureCircuits.createPoll(context, "Q");
+
+    // One voter, one secret key, three ballots — all accepted.
+    const a = contract.impureCircuits.castVote(afterCreate.context, 0n);
+    const b = contract.impureCircuits.castVote(a.context, 0n);
+    const c = contract.impureCircuits.castVote(b.context, 0n);
+
+    expect(ledger(c.context.currentQueryContext.state).yesVotes).toEqual(3n);
+  });
+
+  it("GAP: any secret key may vote — there is no eligibility check", () => {
+    const context = deploy(secretKey(1));
+    const afterCreate = contract.impureCircuits.createPoll(context, "Q");
+
+    // A key entirely unrelated to the poll creator, never enrolled in any allowlist.
+    const strangerContext: CircuitContext<PrivatePollingPrivateState> = {
+      ...afterCreate.context,
+      currentPrivateState: createPrivatePollingPrivateState(secretKey(9)),
+    };
+
+    const after = contract.impureCircuits.castVote(strangerContext, 1n);
+    expect(ledger(after.context.currentQueryContext.state).noVotes).toEqual(1n);
+  });
+
+  it("GAP: the tally reveals the exact distribution of every individual choice", () => {
+    const context = deploy(secretKey(1));
+    const afterCreate = contract.impureCircuits.createPoll(context, "Q");
+    const afterVote = contract.impureCircuits.castVote(afterCreate.context, 0n);
+
+    // With a single ballot cast, the public counters identify that voter's choice
+    // exactly. `castVote` discloses `choice`, so this is visible in the transaction
+    // itself as well — not merely inferred from a small tally.
+    const state = ledger(afterVote.context.currentQueryContext.state);
+    expect(state.yesVotes).toEqual(1n);
+    expect(state.noVotes).toEqual(0n);
+    expect(state.abstainVotes).toEqual(0n);
+  });
+});
