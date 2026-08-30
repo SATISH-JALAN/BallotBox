@@ -37,13 +37,14 @@ import HowToVoteIcon from '@mui/icons-material/HowToVote';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import RemoveIcon from '@mui/icons-material/Remove';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useDeployedBoardContext } from '../hooks';
 import { usePollingContract } from '../hooks/usePollingContract';
 import { type BoardDeployment } from '../contexts';
 import { type Observable } from 'rxjs';
 import { PollState } from '../../../contract/src/managed/private-polling/contract/index.js';
 import { EmptyCardContent } from './Board.EmptyCardContent';
-import { type PrivatePollingDerivedState } from '../../../api/src/index';
+import { type PrivatePollingDerivedState, VoteChoice } from '../../../api/src/index';
 
 export interface BoardProps {
   boardDeployment$?: Observable<BoardDeployment>;
@@ -147,7 +148,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
   // ── Poll renderers ────────────────────────────────────────────────────────
 
   const renderOpenPoll = (state: PrivatePollingDerivedState) => {
-    const total = state.yesVotes + state.noVotes + state.abstainVotes;
+    const total = state.totalVotes;
     return (
       <Box>
         <Chip
@@ -201,9 +202,33 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
 
         <Divider sx={{ borderColor: 'rgba(168,168,168,0.1)', mb: 2 }} />
 
-        <Typography variant="caption" sx={{ color: '#888', display: 'block', mb: 1.5 }}>
-          Cast your private ZK vote:
+        <Typography variant="caption" sx={{ color: '#888', display: 'block', mb: 1 }}>
+          Cast your vote:
         </Typography>
+
+        {/*
+          Ballot secrecy is not implemented yet — `castVote` discloses the choice, so it is
+          a public transaction input. Telling the user otherwise (or saying nothing) would
+          let them act on a guarantee that does not exist. See PRIVACY.md.
+        */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 1,
+            mb: 1.5,
+            p: 1,
+            borderRadius: 1,
+            border: '1px solid rgba(255,167,38,0.35)',
+            backgroundColor: 'rgba(255,167,38,0.08)',
+          }}
+        >
+          <WarningAmberIcon sx={{ fontSize: 16, color: '#ffa726', mt: '1px' }} />
+          <Typography variant="caption" sx={{ color: '#ffa726', lineHeight: 1.4 }}>
+            Your choice is <strong>publicly visible</strong> on-chain in this version. Anonymous ballots are planned —
+            don&apos;t use this for a sensitive vote yet.
+          </Typography>
+        </Box>
 
         {/* castVote circuit calls */}
         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
@@ -213,7 +238,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
             fullWidth
             startIcon={<CheckIcon />}
             disabled={isLoading}
-            onClick={() => void castVote(0)}
+            onClick={() => void castVote(VoteChoice.Yes)}
             sx={{
               backgroundColor: 'rgba(76,175,80,0.2)',
               border: '1px solid rgba(76,175,80,0.5)',
@@ -231,7 +256,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
             fullWidth
             startIcon={<CloseIcon />}
             disabled={isLoading}
-            onClick={() => void castVote(1)}
+            onClick={() => void castVote(VoteChoice.No)}
             sx={{
               backgroundColor: 'rgba(244,67,54,0.2)',
               border: '1px solid rgba(244,67,54,0.5)',
@@ -249,7 +274,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
             fullWidth
             startIcon={<RemoveIcon />}
             disabled={isLoading}
-            onClick={() => void castVote(2)}
+            onClick={() => void castVote(VoteChoice.Abstain)}
             sx={{
               borderColor: 'rgba(158,158,158,0.4)',
               color: '#9e9e9e',
@@ -286,7 +311,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
   };
 
   const renderClosedPoll = (state: PrivatePollingDerivedState) => {
-    const total = state.yesVotes + state.noVotes + state.abstainVotes;
+    const total = state.totalVotes;
     return (
       <Box>
         <Chip

@@ -76,8 +76,8 @@ export const MainLayout: React.FC<React.PropsWithChildren> = ({ children }) => {
       >
         <PrivacyFeature
           icon={<VisibilityOffIcon fontSize="small" />}
-          title="Hidden Votes"
-          desc="Your individual vote is never recorded on-chain. Only the aggregate tally is public."
+          title="Keys Stay Local"
+          desc="Your secret key never leaves your device. Poll ownership is proven in zero knowledge."
         />
         <Divider
           orientation="vertical"
@@ -86,8 +86,8 @@ export const MainLayout: React.FC<React.PropsWithChildren> = ({ children }) => {
         />
         <PrivacyFeature
           icon={<LockIcon fontSize="small" />}
-          title="ZK-Proven Eligibility"
-          desc="You prove you're eligible to vote without revealing your identity."
+          title="ZK-Proven Ownership"
+          desc="Only the poll creator can close a poll, proven without revealing their key."
         />
         <Divider
           orientation="vertical"

@@ -7,7 +7,7 @@
  *
  * Circuit calls (ZK-proven on-chain transactions):
  *   - createPoll(question)  → calls the `createPoll` Compact circuit
- *   - castVote(choice)      → calls the `castVote` Compact circuit (0=Yes, 1=No, 2=Abstain)
+ *   - castVote(choice)      → calls the `castVote` Compact circuit (VoteChoice.Yes/No/Abstain)
  *   - closePoll()           → calls the `closePoll` Compact circuit (creator only)
  *
  * The hook manages:
@@ -20,14 +20,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { type ContractAddress } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
 import { type Observable } from 'rxjs';
-import { type DeployedPrivatePollingAPI, type PrivatePollingDerivedState } from '../../../api/src/index';
+import {
+  type DeployedPrivatePollingAPI,
+  type PrivatePollingDerivedState,
+  type VoteChoice,
+  VOTE_CHOICE_LABELS,
+} from '../../../api/src/index';
 import { type BoardDeployment } from '../contexts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type ContractAction = 'createPoll' | 'castVote' | 'closePoll' | 'deploy' | 'join' | null;
-
-const VOTE_CHOICE_LABEL: Record<0 | 1 | 2, string> = { 0: 'Yes', 1: 'No', 2: 'Abstain' };
 
 /** Errors auto-dismiss after this long, so a stale banner never blocks the UI. */
 const ERROR_AUTO_DISMISS_MS = 5_000;
@@ -63,7 +66,7 @@ export interface UsePollingContractResult {
    * Calls the `castVote` Compact circuit.
    * @param choice - 0 = Yes, 1 = No, 2 = Abstain
    */
-  castVote: (choice: 0 | 1 | 2) => Promise<void>;
+  castVote: (choice: VoteChoice) => Promise<void>;
 
   /**
    * Closes the current open poll (creator only).
@@ -90,7 +93,7 @@ export function usePollingContract(
   const [contractAddress, setContractAddress] = useState<ContractAddress | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(!!boardDeployment$);
   const [currentAction, setCurrentAction] = useState<ContractAction>(null);
-  const [voteChoice, setVoteChoice] = useState<0 | 1 | 2 | null>(null);
+  const [voteChoice, setVoteChoice] = useState<VoteChoice | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Auto-dismiss errors so a stale banner never blocks the UI indefinitely
@@ -162,11 +165,11 @@ export function usePollingContract(
 
   /**
    * castVote — calls the `castVote` Compact circuit.
-   * Casts a ZK-proven private vote: 0 = Yes, 1 = No, 2 = Abstain.
-   * The voter's choice is never recorded on-chain — only the aggregate tally updates.
+   * Casts a vote: VoteChoice.Yes / No / Abstain.
+   * NOTE: the choice is currently disclosed on-chain by the circuit — see PRIVACY.md.
    */
   const castVote = useCallback(
-    async (choice: 0 | 1 | 2): Promise<void> => {
+    async (choice: VoteChoice): Promise<void> => {
       if (!api) return;
       setIsLoading(true);
       setCurrentAction('castVote');
@@ -212,7 +215,7 @@ export function usePollingContract(
   let loadingMessage = 'Working…';
   switch (currentAction) {
     case 'castVote':
-      loadingMessage = `Generating ZK proof for your ${voteChoice !== null ? VOTE_CHOICE_LABEL[voteChoice] : ''} vote…`;
+      loadingMessage = `Generating ZK proof for your ${voteChoice !== null ? VOTE_CHOICE_LABELS[voteChoice] : ''} vote…`;
       break;
     case 'createPoll':
       loadingMessage = 'Encrypting and submitting your poll to the chain…';
