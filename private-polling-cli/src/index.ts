@@ -10,6 +10,7 @@ import {
   type PrivatePollingProviders,
   type DeployedPrivatePollingContract,
   type PrivateStateId,
+  isVoteChoice,
 } from '../../api/src/index';
 import { type WalletFacade } from '@midnight-ntwrk/wallet-sdk-facade';
 import { ledger, PollState, type Ledger } from '../../contract/src/managed/private-polling/contract/index.js';
@@ -155,7 +156,10 @@ const mainLoop = async (providers: PrivatePollingProviders, rli: Interface, logg
           case '2': {
             const voteStr = await rli.question(`Vote choice (0 = Yes, 1 = No, 2 = Abstain): `);
             const vote = parseInt(voteStr, 10);
-            if (isNaN(vote) || vote < 0 || vote > 2) {
+            // `isVoteChoice` narrows `number` to `VoteChoice`, so the range check and the
+            // type are guaranteed to agree — they can't drift apart the way a hand-rolled
+            // `vote < 0 || vote > 2` alongside a separate cast eventually would.
+            if (!isVoteChoice(vote)) {
               logger.error('Invalid vote choice. Must be 0, 1, or 2.');
             } else {
               await pollingApi.castVote(vote);
