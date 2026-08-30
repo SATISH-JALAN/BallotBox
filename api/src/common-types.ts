@@ -33,4 +33,30 @@ export type PrivatePollingDerivedState = {
   readonly abstainVotes: bigint;
   readonly sequence: bigint;
   readonly isOwner: boolean;
+  /** Total ballots counted so far — `yes + no + abstain`. */
+  readonly totalVotes: bigint;
 };
+
+// ── Vote choices ────────────────────────────────────────────────────────────
+//
+// The `castVote` circuit takes a `Uint<8>` and asserts `choice <= 2`. Encoding that
+// contract in the type system keeps the three call sites (CLI, UI, API) from passing
+// a bare number that only fails deep inside proof generation.
+
+export const VoteChoice = {
+  Yes: 0,
+  No: 1,
+  Abstain: 2,
+} as const;
+
+export type VoteChoice = (typeof VoteChoice)[keyof typeof VoteChoice];
+
+export const VOTE_CHOICE_LABELS: Readonly<Record<VoteChoice, string>> = {
+  [VoteChoice.Yes]: 'Yes',
+  [VoteChoice.No]: 'No',
+  [VoteChoice.Abstain]: 'Abstain',
+};
+
+/** Narrows an arbitrary number to a `VoteChoice`, mirroring the circuit's `choice <= 2`. */
+export const isVoteChoice = (value: number): value is VoteChoice =>
+  Number.isInteger(value) && value >= VoteChoice.Yes && value <= VoteChoice.Abstain;

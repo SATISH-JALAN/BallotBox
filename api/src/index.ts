@@ -7,7 +7,10 @@ import {
   type PrivatePollingContract,
   type PrivatePollingProviders,
   type DeployedPrivatePollingContract,
+  type VoteChoice,
   privatePollingPrivateStateKey,
+  isVoteChoice,
+  VOTE_CHOICE_LABELS,
 } from './common-types.js';
 import { CompiledPrivatePollingContractContract } from '../../contract/src/index';
 import * as utils from './utils/index.js';
@@ -21,7 +24,7 @@ export interface DeployedPrivatePollingAPI {
   readonly state$: Observable<PrivatePollingDerivedState>;
 
   createPoll: (question: string) => Promise<void>;
-  castVote: (choice: number) => Promise<void>;
+  castVote: (choice: VoteChoice) => Promise<void>;
   closePoll: () => Promise<void>;
 }
 
@@ -65,6 +68,7 @@ export class PrivatePollingAPI implements DeployedPrivatePollingAPI {
           abstainVotes: ledgerState.abstainVotes,
           sequence: ledgerState.sequence,
           isOwner: toHex(ledgerState.owner) === toHex(hashedSecretKey),
+          totalVotes: ledgerState.yesVotes + ledgerState.noVotes + ledgerState.abstainVotes,
         };
       },
     );
@@ -86,8 +90,14 @@ export class PrivatePollingAPI implements DeployedPrivatePollingAPI {
     });
   }
 
-  async castVote(choice: number): Promise<void> {
-    this.logger?.info(`castingVote: ${choice}`);
+  async castVote(choice: VoteChoice): Promise<void> {
+    // Validate before proving. The circuit asserts `choice <= 2` too, but that assert
+    // only fires after the proof server has spent minutes building a proof that is then
+    // guaranteed to be rejected — so reject it here, immediately and for free.
+    if (!isVoteChoice(choice)) {
+      throw new RangeError(`Invalid vote choice ${String(choice)} — expected 0 (Yes), 1 (No), or 2 (Abstain).`);
+    }
+    this.logger?.info(`castingVote: ${VOTE_CHOICE_LABELS[choice]}`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see createPoll() above.
     const txData = await (this.deployedContract.callTx as any).castVote(BigInt(choice));
     this.logger?.trace({
