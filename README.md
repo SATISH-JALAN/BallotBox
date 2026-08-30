@@ -31,7 +31,7 @@ CONTRACT_ADDRESS=0200dbf964f541e1950883f5b2f539b66fd6111e46ce8e6e9551fbdd180114d
 - 💻 **CLI** — Command-line tool for deploying and interacting with polls directly
 
 > ⚠️ **Ballot secrecy is not implemented yet.** Vote choices are currently public, there is
-> no double-vote protection, and there is no eligibility gate. See
+> and there is no eligibility gate. See
 > [Known limitations](#known-limitations).
 
 ---
@@ -75,7 +75,7 @@ gate — is the Level 4 work described in [`PRIVACY.md`](./PRIVACY.md).
 | Vote counts (Yes / No / Abstain) | ✅ Public |
 | Poll creator (hashed) | ✅ Public |
 | **Individual vote choice** | ⚠️ **Public** — `castVote` passes `choice` through `disclose()` |
-| **Voter identity** | ⚠️ Not proven or protected — no eligibility check exists |
+| **Voter identity** | ⚠️ Not proven — no eligibility check exists (a per-ballot nullifier is public, but is unlinkable to the voter) |
 | Poll creator's secret key | ❌ Private — never leaves the device |
 | Voter's secret key | ❌ Private — never leaves the device |
 
@@ -96,12 +96,15 @@ under *"known limitations — Level 4 scope"*.
 | Gap | Cause | Consequence |
 |-----|-------|-------------|
 | Vote choices are public | `castVote` calls `disclose(choice)` | Anyone reading the transaction sees how you voted |
-| No double-vote protection | No nullifier is recorded | One person can vote an unlimited number of times |
 | No eligibility gate | `castVote` checks no identity | Anyone with the contract address can vote |
 
-Closing all three is the scope of Level 4 — via Merkle-based eligibility proofs,
-nullifiers, and homomorphic tallying. See [`PRIVACY.md`](./PRIVACY.md) for the threat
-model and the target design.
+**Already closed:** double-voting. Each ballot now spends a nullifier bound to the poll, so
+a second vote from the same key is rejected — verified by
+`CLOSED: a second ballot from the same key is rejected by the nullifier set`.
+
+Closing the remaining two is the rest of Level 4, via Merkle-based eligibility proofs and
+homomorphic tallying. See [`PRIVACY.md`](./PRIVACY.md) for the threat model and
+[`contract/DESIGN-V2.md`](./contract/DESIGN-V2.md) for the design.
 
 ---
 

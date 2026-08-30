@@ -12,16 +12,35 @@ export ledger abstainVotes: Counter;
 export ledger owner: Bytes<32>;
 export ledger sequence: Counter;
 
+// Nullifiers already spent in the current poll. Rejecting a repeat is what makes a
+// ballot one-per-credential without ever identifying the credential.
+export ledger spentNullifiers: Set<Bytes<32>>;
+
+// Identifies the current poll. Every nullifier is bound to it, so a credential spent
+// in one poll cannot be replayed in the next — and the same voter's nullifiers across
+// two polls are unlinkable.
+export ledger pollId: Bytes<32>;
+
 witness localSecretKey(): Bytes<32>;
 
 export circuit derivedPublicKey(sk: Bytes<32>, sequence: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([sk, sequence]);
 }
 
+// Domain-separated from `derivedPublicKey` by the "nullifier" tag, so a nullifier can
+// never collide with an owner hash derived from the same secret key.
+export circuit voteNullifier(sk: Bytes<32>, poll: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([
+    persistentHash<Vector<2, Bytes<32>>>([sk, poll]),
+    pad(32, "nullifier")
+  ]);
+}
+
 constructor() {
   pollState = PollState.CLOSED;
   pollQuestion = none<Opaque<"string">>();
   owner = pad(32, "0");
+  pollId = pad(32, "0");
 }
 
 export circuit createPoll(question: Opaque<"string">): [] {
@@ -29,12 +48,26 @@ export circuit createPoll(question: Opaque<"string">): [] {
   pollQuestion = some<Opaque<"string">>(disclose(question));
   pollState = PollState.OPEN;
   sequence.increment(1);
-  owner = disclose(derivedPublicKey(localSecretKey(), pad(32, "0")));
+  const ownerKey = disclose(derivedPublicKey(localSecretKey(), pad(32, "0")));
+  owner = ownerKey;
+
+  // Fresh poll identity, so nullifiers from a previous poll on this contract cannot
+  // be replayed against this one.
+  pollId = disclose(persistentHash<Vector<2, Bytes<32>>>([ownerKey, pad(32, "poll")]));
+
+  // Clear the spent set for the new poll.
+  spentNullifiers.resetToDefault();
 }
 
 export circuit castVote(choice: Uint<8>): [] {
   assert(pollState == PollState.OPEN, "Poll is not currently open");
   assert(choice <= 2, "Invalid choice: 0=Yes, 1=No, 2=Abstain");
+
+  // One ballot per secret key, per poll. The nullifier is a one-way hash of a secret
+  // the chain never sees, so it enforces this without identifying the voter.
+  const nullifier = disclose(voteNullifier(localSecretKey(), pollId));
+  assert(!spentNullifiers.member(nullifier), "This key has already voted in this poll");
+  spentNullifiers.insert(nullifier);
 
   const publicChoice = disclose(choice);
   if (publicChoice == 0) {

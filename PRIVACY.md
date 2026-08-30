@@ -4,7 +4,8 @@ This document states precisely what Private Polling protects today, what it does
 the design that closes the gap. It is deliberately blunt: a voting system that overstates
 its guarantees is worse than one that has none, because people act on the claim.
 
-**Status:** Levels 1–3 complete. Ballot secrecy is **not** implemented.
+**Status:** Double-voting is fixed (nullifiers, implemented and tested). Ballot secrecy and
+eligibility are **not** yet implemented.
 
 ---
 
@@ -19,6 +20,8 @@ Everything in this list is readable by anyone with the contract address and an i
 | Vote tallies | `yesVotes` / `noVotes` / `abstainVotes` counters |
 | Poll creator identity hash | `owner` ledger field, via `disclose(derivedPublicKey(...))` |
 | Poll sequence number | `sequence` counter |
+| Spent nullifiers | `spentNullifiers` set — one opaque hash per ballot cast |
+| Poll identifier | `pollId` ledger field |
 | **Each voter's choice** | **`castVote` calls `disclose(choice)` — it is a public transaction input** |
 
 ## 2. What is private today
@@ -41,23 +44,24 @@ knows a secret key whose hash equals `owner`, without revealing the key. That pa
 | Indexer / RPC operator | **Yes** | Same, plus they see the submitting connection |
 | Poll creator | **Yes** | Same as any observer |
 | Another voter | **Yes** | Same as any observer |
-| Someone who wants to vote twice | n/a — **they can** | No nullifier is recorded |
+| Someone who wants to vote twice | **No — rejected** | Their nullifier is already in `spentNullifiers` |
 | Someone not on any allowlist | n/a — **they can vote** | No eligibility check exists |
 
 ### Specific consequences
 
 - **No ballot secrecy.** Vote choice is disclosed. Combined with transaction metadata
   (submitting address, timing, network-level observation), a voter is linkable to a choice.
-- **No sybil resistance.** One key can cast unlimited ballots, so the tally does not
-  represent one-person-one-vote and is not meaningful as a governance result.
+- ~~**No sybil resistance.**~~ **Fixed.** Each key spends a nullifier bound to the poll, so
+  a second ballot from the same key is rejected. The tally now represents one-vote-per-key.
 - **No eligibility.** Anyone who learns the contract address can vote in the poll.
 - **Small-tally inference.** Even if the choice were not disclosed, per-choice public
   counters leak: with one ballot cast, the counters identify that voter's choice exactly.
 
 Each of these is pinned by a test in
 [`contract/src/test/private-polling.test.ts`](./contract/src/test/private-polling.test.ts)
-under *"known limitations — Level 4 scope"*, so the Level 4 rewrite cannot silently
-regress to today's behaviour.
+under *"anonymous-ballot gaps — Level 4 scope"*, where `CLOSED:` marks a fixed gap and
+`GAP (open):` one that still stands — so neither a regression nor a silent fix can pass
+unnoticed.
 
 ---
 
@@ -72,14 +76,15 @@ revealing which leaf. The contract learns *"a legitimate member voted"* and noth
 
 Replaces: the missing eligibility check.
 
-### 4.2 Nullifiers
+### 4.2 Nullifiers — ✅ IMPLEMENTED
 Each ballot emits `nullifier = hash(voterSecret, pollId)` into a spent set; a repeat
 nullifier is rejected. Because the nullifier is a one-way function of a secret the chain
 never sees, it enforces one-vote-per-credential while remaining unlinkable both to the
 voter's identity and to their allowlist leaf.
 
-Replaces: the missing double-vote protection.
-Note the `pollId` binding — without it, a nullifier would be reusable across polls.
+Replaces: the missing double-vote protection. **Shipped** — `spentNullifiers: Set<Bytes<32>>`
+plus a `voteNullifier` circuit domain-separated from `derivedPublicKey`, with `pollId`
+regenerated per poll so a nullifier cannot replay across polls.
 
 ### 4.3 Homomorphic tallying
 Ballots are encrypted one-hot vectors. The contract aggregates ciphertexts and never
@@ -101,7 +106,7 @@ Replaces: nothing today; this is a property the current design has no answer to 
 
 | | Who can see one ballot? | Who can open the tally? |
 |---|---|---|
-| Today (L1–3) | **Anyone** | n/a — counters already public |
+| Today | **Anyone** | n/a — counters already public |
 | With 4.1–4.4 | Nobody | Organizer (single key) |
 | With threshold decryption | Nobody | No single party |
 

@@ -44,6 +44,24 @@ const deploy = (
 
 const hex = (bytes: Uint8Array): string => Buffer.from(bytes).toString("hex");
 
+/**
+ * Casts a ballot as the holder of `secret`, by swapping the private state the
+ * `localSecretKey` witness reads from. Each distinct secret is a distinct voter, and
+ * therefore a distinct nullifier.
+ */
+const voteAs = (
+  context: CircuitContext<PrivatePollingPrivateState>,
+  secret: Uint8Array,
+  choice: bigint,
+): CircuitContext<PrivatePollingPrivateState> =>
+  new Contract(witnesses).impureCircuits.castVote(
+    {
+      ...context,
+      currentPrivateState: createPrivatePollingPrivateState(secret),
+    },
+    choice,
+  ).context;
+
 describe("private-polling contract", () => {
   const contract = new Contract(witnesses);
 
@@ -98,18 +116,23 @@ describe("private-polling contract", () => {
     expect(ownerFor(secretKey(1))).not.toEqual(ownerFor(secretKey(2)));
   });
 
-  it("castVote tallies choices publicly without recording who cast which vote", () => {
+  it("castVote tallies one ballot per distinct voter", () => {
     const context = deploy(secretKey(1));
     const afterCreate = contract.impureCircuits.createPoll(context, "Q");
-    const afterYes1 = contract.impureCircuits.castVote(afterCreate.context, 0n);
-    const afterYes2 = contract.impureCircuits.castVote(afterYes1.context, 0n);
-    const afterNo = contract.impureCircuits.castVote(afterYes2.context, 1n);
-    const afterAbstain = contract.impureCircuits.castVote(afterNo.context, 2n);
 
-    const state = ledger(afterAbstain.context.currentQueryContext.state);
+    // Four different voters — each needs its own secret key, since a key may now
+    // only be spent once per poll.
+    const afterYes1 = voteAs(afterCreate.context, secretKey(11), 0n);
+    const afterYes2 = voteAs(afterYes1, secretKey(12), 0n);
+    const afterNo = voteAs(afterYes2, secretKey(13), 1n);
+    const afterAbstain = voteAs(afterNo, secretKey(14), 2n);
+
+    const state = ledger(afterAbstain.currentQueryContext.state);
     expect(state.yesVotes).toEqual(2n);
     expect(state.noVotes).toEqual(1n);
     expect(state.abstainVotes).toEqual(1n);
+    // One nullifier recorded per ballot, and nothing else.
+    expect(state.spentNullifiers.size()).toEqual(4n);
   });
 
   it("rejects an out-of-range vote choice", () => {
@@ -157,29 +180,50 @@ describe("private-polling contract", () => {
 });
 
 /**
- * These tests document behaviour the current contract *does* exhibit but that a real
- * anonymous ballot must not. They are deliberately written as passing assertions of the
- * status quo, so that the Level 4 rewrite (Merkle eligibility + nullifiers + undisclosed
- * ballots) has to change them — a silent regression back to today's model would fail here.
+ * Tracks the gap between this contract and a real anonymous ballot.
  *
- * See docs/LEVEL-4-IDEA-SUBMISSION.md for the design that closes these.
+ * `CLOSED:` tests assert a gap that has been fixed, and guard against regressing.
+ * `GAP (open):` tests assert behaviour that is still wrong — written as passing
+ * assertions of the status quo, so that the work which fixes them has to change this
+ * file, and cannot land silently.
+ *
+ * See ../../PRIVACY.md and ../DESIGN-V2.md.
  */
-describe("known limitations — Level 4 scope", () => {
+describe("anonymous-ballot gaps — Level 4 scope", () => {
   const contract = new Contract(witnesses);
 
-  it("GAP: the same voter can vote repeatedly, because there is no nullifier", () => {
+  it("CLOSED: a second ballot from the same key is rejected by the nullifier set", () => {
     const context = deploy(secretKey(1));
     const afterCreate = contract.impureCircuits.createPoll(context, "Q");
 
-    // One voter, one secret key, three ballots — all accepted.
-    const a = contract.impureCircuits.castVote(afterCreate.context, 0n);
-    const b = contract.impureCircuits.castVote(a.context, 0n);
-    const c = contract.impureCircuits.castVote(b.context, 0n);
+    const afterFirst = voteAs(afterCreate.context, secretKey(11), 0n);
+    expect(ledger(afterFirst.currentQueryContext.state).yesVotes).toEqual(1n);
 
-    expect(ledger(c.context.currentQueryContext.state).yesVotes).toEqual(3n);
+    // Same key, same poll — the nullifier is already spent.
+    expect(() => voteAs(afterFirst, secretKey(11), 0n)).toThrow();
+
+    // The rejected attempt left the tally untouched.
+    expect(ledger(afterFirst.currentQueryContext.state).yesVotes).toEqual(1n);
   });
 
-  it("GAP: any secret key may vote — there is no eligibility check", () => {
+  it("CLOSED: nullifiers are unlinkable to the voter's identity hash", () => {
+    const sk = secretKey(11);
+    const context = deploy(secretKey(1));
+    const afterCreate = contract.impureCircuits.createPoll(context, "Q");
+    const after = voteAs(afterCreate.context, sk, 0n);
+
+    const state = ledger(after.currentQueryContext.state);
+    const [nullifier] = [...state.spentNullifiers];
+
+    // The recorded nullifier is neither the secret key nor the identity hash derived
+    // from it, so the public set cannot be joined against either.
+    expect(hex(nullifier)).not.toEqual(hex(sk));
+    expect(hex(nullifier)).not.toEqual(
+      hex(pureCircuits.derivedPublicKey(sk, ZERO_SEQUENCE)),
+    );
+  });
+
+  it("GAP (open): any secret key may vote — there is still no eligibility check", () => {
     const context = deploy(secretKey(1));
     const afterCreate = contract.impureCircuits.createPoll(context, "Q");
 
@@ -193,7 +237,7 @@ describe("known limitations — Level 4 scope", () => {
     expect(ledger(after.context.currentQueryContext.state).noVotes).toEqual(1n);
   });
 
-  it("GAP: the tally reveals the exact distribution of every individual choice", () => {
+  it("GAP (open): the tally reveals the exact distribution of every individual choice", () => {
     const context = deploy(secretKey(1));
     const afterCreate = contract.impureCircuits.createPoll(context, "Q");
     const afterVote = contract.impureCircuits.castVote(afterCreate.context, 0n);
