@@ -11,7 +11,12 @@ import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-p
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import { createVerifierKey } from '@midnight-ntwrk/midnight-js-types';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
-import { PrivatePollingAPI, type PrivatePollingProviders, type PrivateStateId } from '../../api/src/index.js';
+import {
+  PrivatePollingAPI,
+  type PrivatePollingProviders,
+  type PrivateStateId,
+  type PrivatePollingCircuitKeys,
+} from '../../api/src/index.js';
 import { PrivatePollingPrivateState } from '../../contract/src/witnesses.js';
 import { getUnshieldedSeed } from './generate-dust.js';
 import { createKeystore } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
@@ -45,8 +50,8 @@ function encodeVerifierKey(raw: Uint8Array): Uint8Array {
   return new Uint8Array(Buffer.concat([header, scaleLen, keyBuf]));
 }
 
-class TaggedNodeZkConfigProvider extends NodeZkConfigProvider<'createPoll' | 'castVote' | 'closePoll'> {
-  override async getVerifierKey(circuitId: 'createPoll' | 'castVote' | 'closePoll') {
+class TaggedNodeZkConfigProvider extends NodeZkConfigProvider<PrivatePollingCircuitKeys> {
+  override async getVerifierKey(circuitId: PrivatePollingCircuitKeys) {
     const key = await super.getVerifierKey(circuitId);
     return createVerifierKey(encodeVerifierKey(key));
   }

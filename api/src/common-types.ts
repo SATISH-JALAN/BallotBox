@@ -15,7 +15,15 @@ export type PrivateStates = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type PrivatePollingContract = any;
 
-export type PrivatePollingCircuitKeys = 'createPoll' | 'castVote' | 'closePoll';
+export type PrivatePollingCircuitKeys =
+  | 'createPoll'
+  | 'registerTrustee'
+  | 'enrollVoter'
+  | 'openVoting'
+  | 'castVote'
+  | 'closeVoting'
+  | 'submitDecryptionShare'
+  | 'publishTally';
 
 export type PrivatePollingProviders = MidnightProviders<
   PrivatePollingCircuitKeys,
@@ -28,13 +36,45 @@ export type DeployedPrivatePollingContract = FoundContract<PrivatePollingContrac
 export type PrivatePollingDerivedState = {
   readonly pollState: PollState;
   readonly pollQuestion: string | undefined;
-  readonly yesVotes: bigint;
-  readonly noVotes: bigint;
-  readonly abstainVotes: bigint;
   readonly sequence: bigint;
   readonly isOwner: boolean;
-  /** Total ballots counted so far — `yes + no + abstain`. */
-  readonly totalVotes: bigint;
+  /** Ballots cast so far. Public by design — turnout is a legitimate public fact. */
+  readonly ballotCount: bigint;
+  /** Whether the organizer has decrypted and published the result. */
+  readonly tallied: boolean;
+  /** Unix seconds after which ballots are refused on-chain. 0 means no deadline. */
+  readonly votingDeadline: bigint;
+  /** Minimum ballots for the result to be binding. 0 means no quorum requirement. */
+  readonly quorum: bigint;
+  /** Whether quorum was reached. Only meaningful once `tallied` is true. */
+  readonly quorumMet: boolean;
+  /** Registered decryption trustees. The tally needs a share from every one of them. */
+  readonly trusteeCount: bigint;
+  /** Shares submitted so far. Decryption is possible only once this equals trusteeCount. */
+  readonly shareCount: bigint;
+  /** Whether this wallet is a registered trustee for the current poll. */
+  readonly isTrustee: boolean;
+  /** Whether this wallet has already submitted its decryption share. */
+  readonly hasSubmittedShare: boolean;
+  /** Final counts. All zero until `tallied` is true — they do not exist before then. */
+  readonly finalYes: bigint;
+  readonly finalNo: bigint;
+  readonly finalAbstain: bigint;
+  /** How many voters the organizer has enrolled in the eligibility roll. */
+  readonly enrolledCount: bigint;
+  /** Whether this wallet is on the roll, and so may cast a ballot. */
+  readonly isEligible: boolean;
+  /**
+   * Whether this wallet has a ballot recorded in the current poll. Re-voting is allowed
+   * and replaces it, so this means "you have voted", not "you may not vote again".
+   */
+  readonly hasVoted: boolean;
+  /**
+   * This wallet's enrolment commitment, hex-encoded — hand it to the organizer to be
+   * added to the roll. It is a one-way hash of the secret key, so sharing it exposes
+   * neither the key nor a link to the ballot later cast with it.
+   */
+  readonly myCommitment: string;
 };
 
 // ── Vote choices ────────────────────────────────────────────────────────────

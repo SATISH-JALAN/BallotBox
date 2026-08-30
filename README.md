@@ -31,7 +31,7 @@ CONTRACT_ADDRESS=0200dbf964f541e1950883f5b2f539b66fd6111e46ce8e6e9551fbdd180114d
 - 💻 **CLI** — Command-line tool for deploying and interacting with polls directly
 
 > ⚠️ **Ballot secrecy is not implemented yet.** Vote choices are currently public, there is
-> and there is no eligibility gate. See
+> though eligibility and one-vote-per-person now are. See
 > [Known limitations](#known-limitations).
 
 ---
@@ -45,37 +45,62 @@ In traditional voting systems you either trust a centralized server, or you make
 public on a blockchain. The end state for this project is neither — but it is worth being
 precise about how far along it is.
 
-**How a poll works today:**
+**How a poll works:**
 
-1. A user deploys the contract and creates a poll with a question
-2. Participants connect their Midnight wallet and cast votes (Yes / No / Abstain)
-3. The Midnight proof server generates a ZK proof for the transaction
-4. Aggregate vote totals update on-chain for everyone to verify
+A poll moves through four states — `CLOSED` → `REGISTRATION` → `OPEN` → `TALLYING` →
+`CLOSED`. Enrollment and trustee registration must finish before voting opens, so the roll
+and the trustee set are both frozen for the whole voting window.
 
-**What the ZK layer covers today:** the poll creator's secret key stays on-device and
-`closePoll` is authorised by proving a hash of it, so creator authentication is genuinely
-zero-knowledge.
+1. The organizer deploys the contract and calls `createPoll`, which opens **registration**,
+   optionally with a voting deadline and a quorum
+1b. One or more parties call `registerTrustee`. Their keys are summed into a joint tally
+   key whose matching secret is never assembled anywhere — so no one can decrypt alone
+2. Each voter derives their own enrolment commitment — a one-way hash of a secret key that
+   never leaves their device — and gives it to the organizer
+3. The organizer calls `enrollVoter` for each commitment, building a Merkle roll
+4. The organizer calls `openVoting`, freezing the roll
+5. A voter casts a ballot. The circuit proves in zero knowledge that they hold a secret
+   whose commitment is *somewhere* in the roll — without revealing which leaf — spends a
+   nullifier so the same credential cannot vote twice, and adds an **encrypted** ballot to
+   the running aggregate. The choice is a private witness, never a public input
+6. A voter may re-vote at any time before the deadline. The new ballot **replaces** the
+   old one in the aggregate rather than adding to it, so only the last vote counts
+7. Voting stops automatically at the on-chain deadline — the organizer cannot extend it
+   after seeing how the vote is going
+8. `closeVoting` moves the poll to **tallying** — by the organizer, or by anyone once the
+   deadline has passed, so a poll cannot be held open indefinitely
+9. Each trustee submits a decryption share, proven in-circuit to match the key they
+   registered. **Every** trustee must contribute: one honest holdout keeps the result sealed
+10. Once all shares are in the combined value is public, so **anyone** can call
+   `publishTally`. The circuit re-encrypts the submitted counts and checks them against the
+   accumulated ciphertext, so the published result cannot disagree with the ballots cast.
+   If quorum was set and not reached, the result is published but flagged as non-binding
 
-**What it does not cover yet:** the *ballot* itself. `castVote` discloses the choice, so
-step 2 is public. Making it private — plus adding one-vote-per-person and an eligibility
-gate — is the Level 4 work described in [`PRIVACY.md`](./PRIVACY.md).
+**What the ZK layer covers:** eligibility (Merkle membership proofs), one-vote-per-credential
+(nullifiers), ballot secrecy (exponential ElGamal over Jubjub), and a verified tally — the
+organizer cannot publish a result the ballots do not support.
+
+**What it does not cover yet:** coercion resistance. A voter knows their own blinding
+factor, so they can still prove to a third party how they voted. Vote overriding is the
+fix — see [`PRIVACY.md`](./PRIVACY.md).
 
 ---
 
 ## Privacy Model
 
-> **Read this before trusting the app with a real vote.** The table below describes what
-> the contract does *today* (Levels 1–3). Ballot secrecy is **not** yet implemented — see
+> Ballots are secret, eligibility is proven in zero knowledge, and each credential votes
+> once. The remaining gap is **coercion resistance** — see
 > [Known limitations](#known-limitations) and [`PRIVACY.md`](./PRIVACY.md).
 
 | Data | Visibility today |
 |------|-----------|
 | Poll question | ✅ Public |
 | Poll status (Open / Closed) | ✅ Public |
-| Vote counts (Yes / No / Abstain) | ✅ Public |
+| Turnout (ballots cast) | ✅ Public |
+| Final counts | ✅ Public — but only after the organizer decrypts and publishes |
 | Poll creator (hashed) | ✅ Public |
-| **Individual vote choice** | ⚠️ **Public** — `castVote` passes `choice` through `disclose()` |
-| **Voter identity** | ⚠️ Not proven — no eligibility check exists (a per-ballot nullifier is public, but is unlinkable to the voter) |
+| **Individual vote choice** | ❌ Private — encrypted per ballot; never a public input |
+| **Voter identity** | ❌ Private — membership is proven in ZK; the per-ballot nullifier is public but unlinkable to the voter |
 | Poll creator's secret key | ❌ Private — never leaves the device |
 | Voter's secret key | ❌ Private — never leaves the device |
 
@@ -95,16 +120,16 @@ under *"known limitations — Level 4 scope"*.
 
 | Gap | Cause | Consequence |
 |-----|-------|-------------|
-| Vote choices are public | `castVote` calls `disclose(choice)` | Anyone reading the transaction sees how you voted |
-| No eligibility gate | `castVote` checks no identity | Anyone with the contract address can vote |
+| A coercer can see *that* you re-voted | The stored ciphertext visibly changes | "Vote X and don't change it" is partly enforceable |
 
-**Already closed:** double-voting. Each ballot now spends a nullifier bound to the poll, so
-a second vote from the same key is rejected — verified by
-`CLOSED: a second ballot from the same key is rejected by the nullifier set`.
 
-Closing the remaining two is the rest of Level 4, via Merkle-based eligibility proofs and
-homomorphic tallying. See [`PRIVACY.md`](./PRIVACY.md) for the threat model and
-[`contract/DESIGN-V2.md`](./contract/DESIGN-V2.md) for the design.
+**Closed:** eligibility, double-voting, ballot secrecy, and coercion resistance. Voting
+requires a ZK proof of roll membership; each credential contributes exactly one counted
+ballot; the choice is encrypted so no individual ballot is readable by anyone — including
+the organizer; and re-voting replaces an earlier ballot so a receipt proves nothing. All
+are pinned by `CLOSED:` tests.
+
+See [`PRIVACY.md`](./PRIVACY.md) for the full threat model.
 
 ---
 
@@ -112,7 +137,7 @@ homomorphic tallying. See [`PRIVACY.md`](./PRIVACY.md) for the threat model and
 
 | Layer | Technology |
 |-------|-----------|
-| Smart Contract | Compact `v0.23` — Midnight ZK smart contract language |
+| Smart Contract | Compact `v0.23` (compiler `0.31.0`) — Midnight ZK smart contract language |
 | ZK Proofs | Midnight Proof Server (`midnightnetwork/proof-server`) |
 | Frontend | React 19, TypeScript, Material-UI (MUI v9), Vite |
 | Wallet | Midnight Lace / 1AM wallet (`@midnight-ntwrk/dapp-connector-api`) |
@@ -279,6 +304,59 @@ cd private-polling-cli
 npm run deploy-direct
 ```
 
+---
+
+## Integrating BallotBox
+
+`api/` is the integration surface — everything the UI and CLI do, they do through it. A DAO
+adding private voting to an existing governance stack depends on that package and nothing
+below it. See [`api/INTEGRATION.md`](./api/INTEGRATION.md) for the full lifecycle, state
+reference, and the constraints worth knowing before you build on it.
+
+---
+
+## Performance
+
+Measured from the compiled circuits (Compact `0.31.0`). Prover key size is a good proxy for
+proving cost:
+
+| Circuit | Prover key | Notes |
+|---|---:|---|
+| `castVote` | 10.51 MB | Merkle path + eligibility + nullifier + two EC encryptions |
+| `registerTrustee` | 2.95 MB | one scalar multiplication |
+| `submitDecryptionShare` | 2.95 MB | two scalar multiplications |
+| `createPoll` | 2.70 MB | |
+| `enrollVoter` | 2.69 MB | |
+| `openVoting` / `closeVoting` | 2.69 MB | |
+| `publishTally` | 0.34 MB | cheapest — one re-encryption check |
+
+`castVote` dominates at roughly 4× everything else, and the Merkle membership proof is why.
+Its cost scales with **tree depth, not roll size**, so the depth-10 tree (1024 voters) is
+the tuning knob: halving depth roughly halves that portion of the work, and raising it to
+cover more voters costs proportionally more per ballot.
+
+The other scaling limit is tally decryption, which searches `(yes, no)` pairs bounded by
+public turnout — O(n²/2) curve operations. Fine for hundreds of voters; a larger roll would
+want baby-step giant-step instead.
+
+---
+
+## Verify a Published Tally
+
+Any member can independently check a published result. No wallet, no private state, and
+no secret key required — everything it checks is public:
+
+```bash
+cd private-polling-cli
+npm run verify -- <contract-address>
+```
+
+It confirms the published counts sum to the ballots recorded, that no credential
+contributed more than one counted ballot, and that the ballot set fits the eligibility
+roll. It cannot re-derive the counts from the ciphertext — that needs the organizer's
+tally key — but the contract already verified them on-chain when they were published,
+which is what makes the numbers binding.
+
 On success you will see:
 
 ```
@@ -341,12 +419,13 @@ not yet a private *ballot*.
 Turning it into a real anonymous ballot system needs four mechanisms, detailed in
 [`PRIVACY.md`](./PRIVACY.md) and specified in [`contract/DESIGN-V2.md`](./contract/DESIGN-V2.md):
 
-| Mechanism | What it fixes |
-|---|---|
-| **Merkle eligibility** — prove allowlist membership in ZK without revealing which leaf | Anyone can currently vote |
-| **Nullifiers** — `hash(voterSecret, pollId)` in a spent set | One key can currently vote unlimited times |
-| **Homomorphic tallying** — aggregate encrypted ballots, open only the sum | Vote choices are currently public |
-| **Vote overriding** — re-vote, last one counts, ciphertexts indistinguishable | A voter can currently prove their vote to a briber |
+| Mechanism | Status | What it fixes |
+|---|---|---|
+| **Merkle eligibility** — prove roll membership in ZK without revealing which leaf | ✅ Shipped | Anyone could vote |
+| **Nullifiers** — `hash(voterSecret, pollId)` in a spent set | ✅ Shipped | One key could vote unlimited times |
+| **Homomorphic tallying** — aggregate encrypted ballots, open only the sum | ✅ Shipped | Vote choices were public |
+| **Vote overriding** — re-vote, last counts | ✅ Shipped | A voter could prove their vote to a briber |
+| **Threshold decryption** — joint key split across trustees | ✅ Shipped | The organizer alone could open the tally |
 
 Why Midnight specifically: `disclose()` makes the privacy boundary auditable — every value
 that becomes public must be marked in the source, so a reviewer can enumerate exactly what

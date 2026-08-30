@@ -2,7 +2,8 @@
  * Board component
  *
  * Renders a single Private Poll card. Uses the `usePollingContract` hook
- * to drive all smart contract interactions (createPoll, castVote, closePoll).
+ * to drive all smart contract interactions (createPoll, enrollVoter, openVoting,
+ * castVote, publishTally).
  *
  * Two modes:
  *  - No `boardDeployment$` prop → shows the empty "Deploy / Join" card
@@ -107,6 +108,9 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
   const boardApiProvider = useDeployedBoardContext();
   const [questionPrompt, setQuestionPrompt] = useState('');
   const [copied, setCopied] = useState(false);
+  const [commitmentInput, setCommitmentInput] = useState('');
+  const [deadlineHours, setDeadlineHours] = useState('');
+  const [quorumInput, setQuorumInput] = useState('');
 
   // All contract interactions go through this hook
   const {
@@ -118,7 +122,12 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     error,
     createPoll,
     castVote,
-    closePoll,
+    publishTally,
+    enrollVoter,
+    openVoting,
+    registerTrustee,
+    closeVoting,
+    submitDecryptionShare,
     clearError,
   } = usePollingContract(boardDeployment$);
 
@@ -135,9 +144,14 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
 
   const onCreatePoll = useCallback(async () => {
     if (!questionPrompt.trim()) return;
-    await createPoll(questionPrompt);
+    await createPoll(questionPrompt, Number(deadlineHours) || 0, Number(quorumInput) || 0);
     setQuestionPrompt('');
-  }, [createPoll, questionPrompt]);
+  }, [createPoll, questionPrompt, deadlineHours, quorumInput]);
+
+  const onEnroll = useCallback(async () => {
+    await enrollVoter(commitmentInput);
+    setCommitmentInput('');
+  }, [enrollVoter, commitmentInput]);
 
   const onCopyAddress = useCallback(async () => {
     await navigator.clipboard.writeText(contractAddress ?? CONTRACT_ADDRESS_PLACEHOLDER);
@@ -147,8 +161,205 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
 
   // ── Poll renderers ────────────────────────────────────────────────────────
 
+  const renderRegistration = (state: PrivatePollingDerivedState) => (
+    <Box>
+      <Chip
+        icon={<HowToVoteIcon sx={{ fontSize: '14px !important', color: '#ffa726 !important' }} />}
+        label="Enrolling Voters"
+        size="small"
+        sx={{
+          mb: 2,
+          backgroundColor: 'rgba(255,167,38,0.1)',
+          border: '1px solid rgba(255,167,38,0.3)',
+          color: '#ffa726',
+          fontSize: 11,
+        }}
+      />
+
+      <Typography variant="h6" sx={{ fontWeight: 700, color: '#fff', lineHeight: 1.4, mb: 1, wordBreak: 'break-word' }}>
+        {state.pollQuestion || 'Loading question…'}
+      </Typography>
+
+      <Typography variant="caption" sx={{ color: '#888', display: 'block', mb: 2 }}>
+        {state.enrolledCount.toString()} voter{state.enrolledCount === 1n ? '' : 's'} enrolled. Voting has not opened
+        yet — the roll is frozen the moment it does.
+      </Typography>
+
+      <Box
+        sx={{
+          p: 1,
+          mb: 2,
+          borderRadius: 1,
+          border: '1px solid rgba(168,168,168,0.15)',
+          backgroundColor: 'rgba(255,255,255,0.02)',
+        }}
+      >
+        <Typography variant="caption" sx={{ color: '#888', display: 'block', mb: 0.5 }}>
+          Your enrolment commitment — send this to the organizer:
+        </Typography>
+        <Typography variant="caption" sx={{ fontFamily: 'monospace', color: '#a8a8a8', wordBreak: 'break-all' }}>
+          {state.myCommitment}
+        </Typography>
+      </Box>
+
+      {state.isEligible && (
+        <Chip
+          icon={<CheckIcon sx={{ fontSize: '14px !important', color: '#4caf50 !important' }} />}
+          label="You are enrolled"
+          size="small"
+          sx={{
+            mb: 2,
+            backgroundColor: 'rgba(76,175,80,0.1)',
+            border: '1px solid rgba(76,175,80,0.3)',
+            color: '#4caf50',
+            fontSize: 11,
+          }}
+        />
+      )}
+
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="caption" sx={{ color: '#888', display: 'block', mb: 0.5 }}>
+          Decryption trustees: {state.trusteeCount.toString()}
+        </Typography>
+        <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 1 }}>
+          Every trustee must submit a share before the result can be opened, so a single honest trustee refusing to
+          collude keeps the tally sealed.
+        </Typography>
+        {state.isTrustee ? (
+          <Chip
+            icon={<CheckIcon sx={{ fontSize: '14px !important', color: '#4caf50 !important' }} />}
+            label="You are a trustee"
+            size="small"
+            sx={{
+              backgroundColor: 'rgba(76,175,80,0.1)',
+              border: '1px solid rgba(76,175,80,0.3)',
+              color: '#4caf50',
+              fontSize: 11,
+            }}
+          />
+        ) : (
+          <Button
+            variant="outlined"
+            size="small"
+            disabled={isLoading}
+            onClick={() => void registerTrustee()}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            Become a trustee
+          </Button>
+        )}
+      </Box>
+
+      {state.isOwner && (
+        <>
+          <Divider sx={{ borderColor: 'rgba(168,168,168,0.1)', mb: 2 }} />
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Voter commitment (64 hex characters)"
+            value={commitmentInput}
+            onChange={(e) => setCommitmentInput(e.target.value)}
+            disabled={isLoading}
+            sx={{ mb: 1, '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: 12 } }}
+          />
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              fullWidth
+              disabled={isLoading || !commitmentInput.trim()}
+              onClick={() => void onEnroll()}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Enroll voter
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              fullWidth
+              disabled={isLoading || state.enrolledCount === 0n || state.trusteeCount === 0n}
+              onClick={() => void openVoting()}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Open voting
+            </Button>
+          </Box>
+        </>
+      )}
+    </Box>
+  );
+
+  const renderTallying = (state: PrivatePollingDerivedState) => {
+    const allIn = state.shareCount === state.trusteeCount && state.trusteeCount > 0n;
+    return (
+      <Box>
+        <Chip
+          icon={<LockIcon sx={{ fontSize: '14px !important', color: '#7e57c2 !important' }} />}
+          label="Voting closed · Decrypting"
+          size="small"
+          sx={{
+            mb: 2,
+            backgroundColor: 'rgba(126,87,194,0.1)',
+            border: '1px solid rgba(126,87,194,0.3)',
+            color: '#7e57c2',
+            fontSize: 11,
+          }}
+        />
+
+        <Typography variant="h6" sx={{ fontWeight: 700, color: '#fff', lineHeight: 1.4, mb: 1.5 }}>
+          {state.pollQuestion || 'Loading question…'}
+        </Typography>
+
+        <Typography variant="caption" sx={{ color: '#888', display: 'block', mb: 1 }}>
+          {state.shareCount.toString()} of {state.trusteeCount.toString()} trustees have submitted a decryption share.
+          The result stays sealed until all of them do.
+        </Typography>
+        <LinearProgress
+          variant="determinate"
+          value={pct(state.shareCount, state.trusteeCount)}
+          sx={{
+            height: 6,
+            borderRadius: 3,
+            mb: 2,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            '& .MuiLinearProgress-bar': { backgroundColor: '#7e57c2', borderRadius: 3 },
+          }}
+        />
+
+        {state.isTrustee && !state.hasSubmittedShare && (
+          <Button
+            variant="contained"
+            size="small"
+            fullWidth
+            disabled={isLoading}
+            onClick={() => void submitDecryptionShare()}
+            sx={{ textTransform: 'none', fontWeight: 700, mb: 1 }}
+          >
+            Submit my decryption share
+          </Button>
+        )}
+
+        {/* Deliberately open to everyone: once the shares are in, the result is public
+            data and the organizer is not a gatekeeper on it being seen. */}
+        {allIn && (
+          <Button
+            variant="contained"
+            size="small"
+            fullWidth
+            startIcon={<HowToVoteIcon />}
+            disabled={isLoading}
+            onClick={() => void publishTally()}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            Publish the result (anyone can do this)
+          </Button>
+        )}
+      </Box>
+    );
+  };
+
   const renderOpenPoll = (state: PrivatePollingDerivedState) => {
-    const total = state.totalVotes;
+    const total = state.ballotCount;
     return (
       <Box>
         <Chip
@@ -171,40 +382,57 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
           {state.pollQuestion || 'Loading question…'}
         </Typography>
 
-        {total > 0n && (
-          <Box sx={{ mb: 2.5 }}>
-            <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 1 }}>
-              Current tally ({total.toString()} vote{total !== 1n ? 's' : ''})
+        {/* No running tally is shown, because none exists to show: the aggregate is an
+            ElGamal ciphertext until the organizer decrypts it. Turnout is public. */}
+        <Box sx={{ mb: 2.5 }}>
+          <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 0.5 }}>
+            {total.toString()} of {state.enrolledCount.toString()} enrolled voter
+            {state.enrolledCount === 1n ? '' : 's'} have voted
+          </Typography>
+          <LinearProgress
+            variant="determinate"
+            value={pct(total, state.enrolledCount)}
+            sx={{
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: 'rgba(255,255,255,0.08)',
+              '& .MuiLinearProgress-bar': { backgroundColor: '#7e57c2', borderRadius: 3 },
+            }}
+          />
+          <Typography variant="caption" sx={{ color: '#7e57c2', display: 'block', mt: 1 }}>
+            Results are sealed until voting closes — not even the organizer can read them yet.
+          </Typography>
+          {state.votingDeadline > 0n && (
+            <Typography variant="caption" sx={{ color: '#888', display: 'block', mt: 0.5 }}>
+              Voting closes {new Date(Number(state.votingDeadline) * 1000).toLocaleString()}
             </Typography>
-            <VoteBar
-              label="Yes"
-              icon={<CheckIcon sx={{ fontSize: 12, color: '#4caf50' }} />}
-              count={state.yesVotes}
-              total={total}
-              color="#4caf50"
-            />
-            <VoteBar
-              label="No"
-              icon={<CloseIcon sx={{ fontSize: 12, color: '#f44336' }} />}
-              count={state.noVotes}
-              total={total}
-              color="#f44336"
-            />
-            <VoteBar
-              label="Abstain"
-              icon={<RemoveIcon sx={{ fontSize: 12, color: '#9e9e9e' }} />}
-              count={state.abstainVotes}
-              total={total}
-              color="#9e9e9e"
-            />
-          </Box>
-        )}
+          )}
+          {state.quorum > 0n && (
+            <Typography variant="caption" sx={{ color: '#888', display: 'block' }}>
+              Quorum: {total.toString()} / {state.quorum.toString()} ballots needed
+            </Typography>
+          )}
+        </Box>
 
         <Divider sx={{ borderColor: 'rgba(168,168,168,0.1)', mb: 2 }} />
 
         <Typography variant="caption" sx={{ color: '#888', display: 'block', mb: 1 }}>
           Cast your vote:
         </Typography>
+
+        {/* Tell the voter where they stand before they spend minutes generating a proof
+            that the circuit will reject. */}
+        {!state.isEligible && (
+          <Typography variant="caption" sx={{ color: '#f44336', display: 'block', mb: 1 }}>
+            You are not on the eligibility roll for this poll, so a ballot would be rejected.
+          </Typography>
+        )}
+        {state.isEligible && state.hasVoted && (
+          <Typography variant="caption" sx={{ color: '#7e57c2', display: 'block', mb: 1 }}>
+            Your ballot is recorded. You can change it any time before voting closes — only your last vote counts, so
+            anyone who pressured you cannot rely on what they saw.
+          </Typography>
+        )}
 
         {/*
           Ballot secrecy is not implemented yet — `castVote` discloses the choice, so it is
@@ -237,7 +465,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
             size="small"
             fullWidth
             startIcon={<CheckIcon />}
-            disabled={isLoading}
+            disabled={isLoading || !state.isEligible}
             onClick={() => void castVote(VoteChoice.Yes)}
             sx={{
               backgroundColor: 'rgba(76,175,80,0.2)',
@@ -255,7 +483,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
             size="small"
             fullWidth
             startIcon={<CloseIcon />}
-            disabled={isLoading}
+            disabled={isLoading || !state.isEligible}
             onClick={() => void castVote(VoteChoice.No)}
             sx={{
               backgroundColor: 'rgba(244,67,54,0.2)',
@@ -273,7 +501,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
             size="small"
             fullWidth
             startIcon={<RemoveIcon />}
-            disabled={isLoading}
+            disabled={isLoading || !state.isEligible}
             onClick={() => void castVote(VoteChoice.Abstain)}
             sx={{
               borderColor: 'rgba(158,158,158,0.4)',
@@ -287,15 +515,15 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
           </Button>
         </Box>
 
-        {/* closePoll circuit call — visible only to poll creator */}
-        {state.isOwner && (
+        {/* Ends voting so trustees can decrypt. Creator, or anyone past the deadline. */}
+        {(state.isOwner || (state.votingDeadline > 0n && Date.now() / 1000 > Number(state.votingDeadline))) && (
           <Button
             variant="text"
             size="small"
             fullWidth
             startIcon={<CancelIcon />}
             disabled={isLoading}
-            onClick={() => void closePoll()}
+            onClick={() => void closeVoting()}
             sx={{
               color: '#666',
               textTransform: 'none',
@@ -303,7 +531,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
               '&:hover': { color: '#f44336', backgroundColor: 'rgba(244,67,54,0.05)' },
             }}
           >
-            Close Poll (you&apos;re the creator)
+            Close voting and begin decryption
           </Button>
         )}
       </Box>
@@ -311,9 +539,15 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
   };
 
   const renderClosedPoll = (state: PrivatePollingDerivedState) => {
-    const total = state.totalVotes;
+    const total = state.finalYes + state.finalNo + state.finalAbstain;
     return (
       <Box>
+        {state.tallied && state.quorum > 0n && !state.quorumMet && (
+          <Typography variant="caption" sx={{ color: '#ffa726', display: 'block', mb: 1.5 }}>
+            Quorum not met ({total.toString()} of {state.quorum.toString()} required) — this result is published for
+            transparency but is not binding.
+          </Typography>
+        )}
         <Chip
           icon={<LockIcon sx={{ fontSize: '14px !important', color: '#888 !important' }} />}
           label="Poll Closed"
@@ -340,21 +574,21 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                 <VoteBar
                   label="Yes"
                   icon={<CheckIcon sx={{ fontSize: 12, color: '#4caf50' }} />}
-                  count={state.yesVotes}
+                  count={state.finalYes}
                   total={total}
                   color="#4caf50"
                 />
                 <VoteBar
                   label="No"
                   icon={<CloseIcon sx={{ fontSize: 12, color: '#f44336' }} />}
-                  count={state.noVotes}
+                  count={state.finalNo}
                   total={total}
                   color="#f44336"
                 />
                 <VoteBar
                   label="Abstain"
                   icon={<RemoveIcon sx={{ fontSize: 12, color: '#9e9e9e' }} />}
-                  count={state.abstainVotes}
+                  count={state.finalAbstain}
                   total={total}
                   color="#9e9e9e"
                 />
@@ -392,6 +626,33 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
             },
           }}
         />
+
+        {/* Both are enforced on-chain: the deadline stops ballots automatically, and the
+            quorum flag prevents an under-attended vote being presented as a mandate. */}
+        <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+          <TextField
+            size="small"
+            fullWidth
+            type="number"
+            label="Voting window (hours)"
+            placeholder="none"
+            value={deadlineHours}
+            onChange={(e) => setDeadlineHours(e.target.value)}
+            slotProps={{ inputLabel: { shrink: true, sx: { color: '#888' } } }}
+            sx={{ '& .MuiOutlinedInput-root': { color: '#e0e0e0' } }}
+          />
+          <TextField
+            size="small"
+            fullWidth
+            type="number"
+            label="Quorum (ballots)"
+            placeholder="none"
+            value={quorumInput}
+            onChange={(e) => setQuorumInput(e.target.value)}
+            slotProps={{ inputLabel: { shrink: true, sx: { color: '#888' } } }}
+            sx={{ '& .MuiOutlinedInput-root': { color: '#e0e0e0' } }}
+          />
+        </Box>
 
         {/* createPoll circuit call */}
         <Button
@@ -483,6 +744,8 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
               pollState ? (
                 pollState.pollState === PollState.OPEN ? (
                   <LockOpenIcon sx={{ color: '#4caf50' }} data-testid="post-unlocked-icon" />
+                ) : pollState.pollState === PollState.REGISTRATION ? (
+                  <HowToVoteIcon sx={{ color: '#ffa726' }} data-testid="post-registration-icon" />
                 ) : (
                   <LockIcon sx={{ color: '#666' }} data-testid="post-locked-icon" />
                 )
@@ -521,6 +784,10 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
             {pollState ? (
               pollState.pollState === PollState.OPEN ? (
                 renderOpenPoll(pollState)
+              ) : pollState.pollState === PollState.REGISTRATION ? (
+                renderRegistration(pollState)
+              ) : pollState.pollState === PollState.TALLYING ? (
+                renderTallying(pollState)
               ) : (
                 renderClosedPoll(pollState)
               )

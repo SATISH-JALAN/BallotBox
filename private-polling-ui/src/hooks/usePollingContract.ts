@@ -30,7 +30,18 @@ import { type BoardDeployment } from '../contexts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type ContractAction = 'createPoll' | 'castVote' | 'closePoll' | 'deploy' | 'join' | null;
+export type ContractAction =
+  | 'createPoll'
+  | 'enrollVoter'
+  | 'openVoting'
+  | 'registerTrustee'
+  | 'closeVoting'
+  | 'submitShare'
+  | 'castVote'
+  | 'publishTally'
+  | 'deploy'
+  | 'join'
+  | null;
 
 /** Errors auto-dismiss after this long, so a stale banner never blocks the UI. */
 const ERROR_AUTO_DISMISS_MS = 5_000;
@@ -59,7 +70,12 @@ export interface UsePollingContractResult {
    * Calls the `createPoll` Compact circuit.
    * @param question - The poll question text
    */
-  createPoll: (question: string) => Promise<void>;
+  /**
+   * @param deadlineHours Voting window in hours. Enforced on-chain, so it cannot be
+   *   extended after the fact. Omit or 0 for no deadline.
+   * @param quorum Minimum ballots for a binding result. 0 for none.
+   */
+  createPoll: (question: string, deadlineHours?: number, quorum?: number) => Promise<void>;
 
   /**
    * Casts a vote on the current open poll.
@@ -68,11 +84,27 @@ export interface UsePollingContractResult {
    */
   castVote: (choice: VoteChoice) => Promise<void>;
 
+  /** Adds a voter commitment to the eligibility roll. Creator-only, during registration. */
+  enrollVoter: (commitmentHex: string) => Promise<void>;
+
+  /** Freezes the roll and opens voting. Creator-only. */
+  openVoting: () => Promise<void>;
+
+  /** Registers this wallet as a decryption trustee. Open to anyone before voting opens. */
+  registerTrustee: () => Promise<void>;
+
+  /** Ends voting so trustees can submit shares. */
+  closeVoting: () => Promise<void>;
+
+  /** Submits this trustee's decryption share. */
+  submitDecryptionShare: () => Promise<void>;
+
   /**
-   * Closes the current open poll (creator only).
-   * Calls the `closePoll` Compact circuit.
+   * Decrypts the encrypted aggregate and publishes it, closing the poll (creator only).
+   * Calls the `publishTally` Compact circuit, which re-encrypts the submitted counts and
+   * checks them against the ballots — so a wrong tally cannot be published.
    */
-  closePoll: () => Promise<void>;
+  publishTally: () => Promise<void>;
 
   /** Clears the current error message */
   clearError: () => void;
@@ -146,13 +178,14 @@ export function usePollingContract(
    * Creates a new poll with the given question on the deployed contract.
    */
   const createPoll = useCallback(
-    async (question: string): Promise<void> => {
+    async (question: string, deadlineHours = 0, quorum = 0): Promise<void> => {
       if (!api || !question.trim()) return;
       setIsLoading(true);
       setCurrentAction('createPoll');
       setError(null);
       try {
-        await api.createPoll(question.trim());
+        const deadline = deadlineHours > 0 ? new Date(Date.now() + deadlineHours * 3600_000) : undefined;
+        await api.createPoll(question.trim(), deadline, quorum);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -189,16 +222,16 @@ export function usePollingContract(
   );
 
   /**
-   * closePoll — calls the `closePoll` Compact circuit.
-   * Only the poll creator can close a poll (verified by ZK proof of secret key ownership).
+   * publishTally — calls the `publishTally` Compact circuit.
+   * Creator-only; decryption happens locally and the circuit verifies it.
    */
-  const closePoll = useCallback(async (): Promise<void> => {
+  const publishTally = useCallback(async (): Promise<void> => {
     if (!api) return;
     setIsLoading(true);
-    setCurrentAction('closePoll');
+    setCurrentAction('publishTally');
     setError(null);
     try {
-      await api.closePoll();
+      await api.publishTally();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -206,6 +239,84 @@ export function usePollingContract(
       setCurrentAction(null);
     }
   }, [api]);
+
+  /**
+   * enrollVoter — calls the `enrollVoter` Compact circuit.
+   * Takes the 64-hex-character commitment a voter derived from their own secret key.
+   */
+  const enrollVoter = useCallback(
+    async (commitmentHex: string): Promise<void> => {
+      if (!api) return;
+      const cleaned = commitmentHex.trim().replace(/^0x/i, '');
+      // Reject a malformed commitment here — the circuit would only reject it after
+      // minutes of proof generation.
+      if (!/^[0-9a-fA-F]{64}$/.test(cleaned)) {
+        setError('Invalid commitment — expected exactly 64 hex characters.');
+        return;
+      }
+      setIsLoading(true);
+      setCurrentAction('enrollVoter');
+      setError(null);
+      try {
+        const bytes = Uint8Array.from(cleaned.match(/../g)!.map((b) => parseInt(b, 16)));
+        await api.enrollVoter(bytes);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setIsLoading(false);
+        setCurrentAction(null);
+      }
+    },
+    [api],
+  );
+
+  /** openVoting — calls the `openVoting` Compact circuit. Creator-only. */
+  const openVoting = useCallback(async (): Promise<void> => {
+    if (!api) return;
+    setIsLoading(true);
+    setCurrentAction('openVoting');
+    setError(null);
+    try {
+      await api.openVoting();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+      setCurrentAction(null);
+    }
+  }, [api]);
+
+  /** Wraps a no-argument circuit call in the shared loading / error handling. */
+  const runAction = useCallback(
+    (action: ContractAction, call: (a: DeployedPrivatePollingAPI) => Promise<unknown>) => async (): Promise<void> => {
+      if (!api) return;
+      setIsLoading(true);
+      setCurrentAction(action);
+      setError(null);
+      try {
+        await call(api);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setIsLoading(false);
+        setCurrentAction(null);
+      }
+    },
+    [api],
+  );
+
+  const registerTrustee = useCallback(
+    runAction('registerTrustee', (a) => a.registerTrustee()),
+    [runAction],
+  );
+  const closeVoting = useCallback(
+    runAction('closeVoting', (a) => a.closeVoting()),
+    [runAction],
+  );
+  const submitDecryptionShare = useCallback(
+    runAction('submitShare', (a) => a.submitDecryptionShare()),
+    [runAction],
+  );
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -220,8 +331,23 @@ export function usePollingContract(
     case 'createPoll':
       loadingMessage = 'Encrypting and submitting your poll to the chain…';
       break;
-    case 'closePoll':
-      loadingMessage = 'Generating ZK proof to close the poll…';
+    case 'enrollVoter':
+      loadingMessage = 'Adding voter to the eligibility roll…';
+      break;
+    case 'openVoting':
+      loadingMessage = 'Freezing the roll and opening voting…';
+      break;
+    case 'registerTrustee':
+      loadingMessage = 'Registering as a decryption trustee…';
+      break;
+    case 'closeVoting':
+      loadingMessage = 'Closing voting so trustees can decrypt…';
+      break;
+    case 'submitShare':
+      loadingMessage = 'Proving and submitting your decryption share…';
+      break;
+    case 'publishTally':
+      loadingMessage = 'Decrypting the tally and proving it matches the ballots…';
       break;
     case 'deploy':
       loadingMessage = 'Deploying contract to Midnight preprod…';
@@ -240,7 +366,12 @@ export function usePollingContract(
     error,
     createPoll,
     castVote,
-    closePoll,
+    publishTally,
+    enrollVoter,
+    openVoting,
+    registerTrustee,
+    closeVoting,
+    submitDecryptionShare,
     clearError,
   };
 }

@@ -2,33 +2,121 @@ pragma language_version 0.23.0;
 
 import CompactStandardLibrary;
 
-export enum PollState { CLOSED, OPEN }
+// Poll lifecycle. Enrollment must finish before voting opens, so the eligibility roll is
+// frozen for the whole voting window and cannot be stuffed once ballots are being cast.
+// Poll lifecycle:
+//
+//   CLOSED -> REGISTRATION -> OPEN -> TALLYING -> CLOSED
+//
+// TALLYING exists because decryption is no longer one party's private act. Voting has to
+// stop before trustees can produce their shares, and the result cannot be published until
+// enough of them have.
+export enum PollState { CLOSED, REGISTRATION, OPEN, TALLYING }
 
 export ledger pollState: PollState;
 export ledger pollQuestion: Maybe<Opaque<"string">>;
-export ledger yesVotes: Counter;
-export ledger noVotes: Counter;
-export ledger abstainVotes: Counter;
 export ledger owner: Bytes<32>;
 export ledger sequence: Counter;
 
-// Nullifiers already spent in the current poll. Rejecting a repeat is what makes a
-// ballot one-per-credential without ever identifying the credential.
-export ledger spentNullifiers: Set<Bytes<32>>;
+// The eligibility roll: a Merkle tree of voter commitments. Depth 10 holds up to 1024
+// enrolled voters. Depth is fixed at compile time and drives proving cost, so it is the
+// main knob if a larger roll is ever needed.
+export ledger eligibility: MerkleTree<10, Bytes<32>>;
 
-// Identifies the current poll. Every nullifier is bound to it, so a credential spent
-// in one poll cannot be replayed in the next — and the same voter's nullifiers across
-// two polls are unlinkable.
+// Each voter's most recent ballot ciphertext, keyed by their nullifier. Membership is
+// what enforces one *counted* ballot per credential; storing the ciphertext is what makes
+// re-voting possible, since the old contribution has to be removed from the aggregate
+// before the new one is added.
+export ledger priorBallotC1: Map<Bytes<32>, JubjubPoint>;
+export ledger priorBallotC2: Map<Bytes<32>, JubjubPoint>;
+
+// Identifies the current poll. Every nullifier is bound to it, so a credential spent in
+// one poll cannot be replayed in the next.
 export ledger pollId: Bytes<32>;
 
+// ── Encrypted tally (exponential ElGamal) ───────────────────────────────────────────
+//
+// `tallyPublicKey` is the *joint* key H = g^(x_1 + ... + x_n), formed by summing every
+// registered trustee's individual public key. Each ballot contributes the ciphertext
+// (g^r, H^r * g^m) for its encoded choice m, and the contract accumulates the two
+// components additively. Because ElGamal is homomorphic, the running pair is an encryption
+// of the *sum* of all choices — while each ballot stays hidden, blinded by its own r.
+//
+// No single trustee can decrypt: opening the aggregate needs every share x_i. That is the
+// point — it removes the organizer as a party who has to be trusted not to peek.
+export ledger tallyPublicKey: JubjubPoint;
+export ledger encTallyC1: JubjubPoint;
+export ledger encTallyC2: JubjubPoint;
+
+// ── Threshold decryption trustees ───────────────────────────────────────────────────
+//
+// Each trustee registers a public key g^(x_i) during REGISTRATION, keyed by their own
+// identity hash. After voting closes each submits a decryption share x_i * C1, proven
+// in-circuit to correspond to the key they registered — a trustee cannot submit a bogus
+// share, because the circuit recomputes g^(x_i) from the same witness and checks it.
+//
+// This is n-of-n: every registered trustee must participate. That deliberately trades
+// liveness for the strongest possible confidentiality — a single honest trustee refusing
+// to collude is enough to keep the result sealed.
+export ledger trusteeKeys: Map<Bytes<32>, JubjubPoint>;
+export ledger trusteeCount: Counter;
+export ledger decryptionShares: Map<Bytes<32>, JubjubPoint>;
+export ledger shareCount: Counter;
+
+// Running sum of submitted shares. Once complete this equals x * C1 for the joint secret,
+// which is exactly what is needed to strip the blinding off the aggregate.
+export ledger combinedShares: JubjubPoint;
+
+// How many ballots were cast. Public by design: turnout is a legitimate public fact, and
+// it is already implied by the size of the nullifier set.
+export ledger ballotCount: Counter;
+
+// Voting closes automatically at this wall-clock time, enforced on-chain rather than by
+// the organizer remembering to act. Zero means "no deadline".
+export ledger votingDeadline: Uint<64>;
+
+// Minimum ballots for the result to be considered binding. Recorded rather than enforced:
+// a poll that misses quorum still publishes its numbers, but is flagged so nobody can
+// present an under-attended vote as a mandate.
+export ledger quorum: Uint<32>;
+export ledger quorumMet: Boolean;
+
+// Published only once the organizer decrypts and proves the aggregate. Zero beforehand.
+export ledger tallied: Boolean;
+export ledger finalYes: Uint<32>;
+export ledger finalNo: Uint<32>;
+export ledger finalAbstain: Uint<32>;
+
 witness localSecretKey(): Bytes<32>;
+
+// The voter's authentication path into `eligibility`. Private: supplied by the wallet,
+// never disclosed, so proving membership never reveals which member is voting.
+witness eligibilityPath(): MerkleTreePath<10, Bytes<32>>;
+
+// The ballot itself. A witness rather than a circuit argument — a circuit argument would
+// be a public transaction input, which is exactly the leak this design removes.
+witness ballotChoice(): Uint<8>;
+
+// Per-ballot ElGamal randomness. Must be fresh per ballot; reuse would make two ballots
+// with the same choice produce identical ciphertexts and become linkable.
+witness ballotRandomness(): Field;
+
+// The organizer's tally secret x, derived from their secret key by the wallet. Only ever
+// read inside `publishTally`, and never disclosed.
+witness tallySecretKey(): Field;
 
 export circuit derivedPublicKey(sk: Bytes<32>, sequence: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([sk, sequence]);
 }
 
-// Domain-separated from `derivedPublicKey` by the "nullifier" tag, so a nullifier can
-// never collide with an owner hash derived from the same secret key.
+// Each hash below is domain-separated by a distinct tag, so a value derived from one
+// secret key for one purpose can never be mistaken for another. Reusing a single hash
+// across purposes is the usual way schemes like this break.
+
+export circuit voterCommitment(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([sk, pad(32, "voter")]);
+}
+
 export circuit voteNullifier(sk: Bytes<32>, poll: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([
     persistentHash<Vector<2, Bytes<32>>>([sk, poll]),
@@ -36,52 +124,259 @@ export circuit voteNullifier(sk: Bytes<32>, poll: Bytes<32>): Bytes<32> {
   ]);
 }
 
+// Choices are encoded into disjoint digit positions of a single field element, so one
+// homomorphic sum carries all three counts at once:
+//
+//   total = yes + no * 2^16 + abstain * 2^32
+//
+// The radix must exceed the maximum number of ballots or the digits would carry into one
+// another and corrupt the tally. 2^16 = 65536 against a 1024-voter roll leaves ample room.
+// Scalar multiplication by (subgroup order - 1) negates a point, which gives point
+// subtraction without a unary minus operator. Needed to remove a voter's previous
+// ballot from the aggregate when they re-vote.
+export circuit negatePoint(p: JubjubPoint): JubjubPoint {
+  return ecMul(p, 6554484396890773809930967563523245729705921265872317281365359162392183254198 as Field);
+}
+
+export circuit encodeChoice(choice: Uint<8>): Field {
+  if (choice == 0) {
+    return 1 as Field;
+  } else if (choice == 1) {
+    return 65536 as Field;
+  } else {
+    return 4294967296 as Field;
+  }
+}
+
+/**
+ * Re-encrypts a candidate tally, for the organizer's off-chain decryption search.
+ *
+ * Exposed as a pure circuit rather than reimplemented in TypeScript so the search and
+ * the on-chain check in `publishTally` compute the identical function — a divergence
+ * between the two would show up as an unexplainable "tally does not match" failure.
+ */
+export circuit expectedTallyPoint(total: Field, c1: JubjubPoint, x: Field): JubjubPoint {
+  return ecAdd(ecMulGenerator(total), ecMul(c1, x));
+}
+
+/**
+ * Re-encrypts a candidate tally against the *combined* trustee shares, for the public
+ * decryption search. Takes no secret: once every share is on-chain the combined value is
+ * public, so anyone can run this and confirm the published counts for themselves.
+ */
+export circuit tallyCandidate(total: Field, combined: JubjubPoint): JubjubPoint {
+  return ecAdd(ecMulGenerator(total), combined);
+}
+
 constructor() {
   pollState = PollState.CLOSED;
   pollQuestion = none<Opaque<"string">>();
   owner = pad(32, "0");
   pollId = pad(32, "0");
+  tallied = false;
+  quorumMet = false;
+  finalYes = 0;
+  finalNo = 0;
+  finalAbstain = 0;
+  votingDeadline = 0;
+  quorum = 0;
 }
 
-export circuit createPoll(question: Opaque<"string">): [] {
-  assert(pollState == PollState.CLOSED, "A poll is already open");
+export circuit createPoll(question: Opaque<"string">, deadline: Uint<64>, minimumBallots: Uint<32>): [] {
+  assert(pollState == PollState.CLOSED, "A poll is already in progress");
   pollQuestion = some<Opaque<"string">>(disclose(question));
-  pollState = PollState.OPEN;
+  pollState = PollState.REGISTRATION;
   sequence.increment(1);
+
   const ownerKey = disclose(derivedPublicKey(localSecretKey(), pad(32, "0")));
   owner = ownerKey;
 
-  // Fresh poll identity, so nullifiers from a previous poll on this contract cannot
-  // be replayed against this one.
+  // Fresh poll identity, and a clean roll, spent set, and tally, so nothing from a
+  // previous poll on this contract carries over.
   pollId = disclose(persistentHash<Vector<2, Bytes<32>>>([ownerKey, pad(32, "poll")]));
+  priorBallotC1.resetToDefault();
+  priorBallotC2.resetToDefault();
+  eligibility.resetToDefault();
+  encTallyC1.resetToDefault();
+  encTallyC2.resetToDefault();
+  ballotCount.resetToDefault();
+  tallied = false;
+  quorumMet = false;
+  finalYes = 0;
+  finalNo = 0;
+  finalAbstain = 0;
+  votingDeadline = disclose(deadline);
+  quorum = disclose(minimumBallots);
 
-  // Clear the spent set for the new poll.
-  spentNullifiers.resetToDefault();
+  // The joint key starts empty and is built up as trustees register. Until at least one
+  // registers there is no key to encrypt to, which is why `openVoting` requires one.
+  tallyPublicKey.resetToDefault();
+  trusteeKeys.resetToDefault();
+  trusteeCount.resetToDefault();
+  decryptionShares.resetToDefault();
+  shareCount.resetToDefault();
+  combinedShares.resetToDefault();
 }
 
-export circuit castVote(choice: Uint<8>): [] {
+export circuit enrollVoter(commitment: Bytes<32>): [] {
+  assert(pollState == PollState.REGISTRATION, "Enrollment is closed");
+  assert(
+    disclose(derivedPublicKey(localSecretKey(), pad(32, "0"))) == owner,
+    "Only the poll creator can enroll voters"
+  );
+  eligibility.insert(disclose(commitment));
+}
+
+export circuit openVoting(): [] {
+  assert(pollState == PollState.REGISTRATION, "Poll is not accepting enrollment");
+  assert(
+    disclose(derivedPublicKey(localSecretKey(), pad(32, "0"))) == owner,
+    "Only the poll creator can open voting"
+  );
+  // Without a trustee there is no key to encrypt ballots to, and the poll would be
+  // unopenable rather than merely insecure — fail here where the cause is obvious.
+  assert(trusteeCount > 0, "At least one decryption trustee must register first");
+  pollState = PollState.OPEN;
+}
+
+// Registers the caller as a decryption trustee and folds their key into the joint key.
+// Open to any wallet during REGISTRATION: who is allowed to be a trustee is a governance
+// question, and restricting it to the organizer's nominees would put the organizer back
+// in the position of choosing who can decrypt.
+export circuit registerTrustee(): [] {
+  assert(pollState == PollState.REGISTRATION, "Trustees can only register before voting opens");
+  const identity = disclose(derivedPublicKey(localSecretKey(), pad(32, "0")));
+  assert(!trusteeKeys.member(identity), "Already registered as a trustee");
+
+  const share = ecMulGenerator(tallySecretKey());
+  trusteeKeys.insert(identity, disclose(share));
+  // Joint key H = sum of every trustee's key, so the matching secret is the sum of the
+  // individual secrets and no one holds it.
+  tallyPublicKey = disclose(ecAdd(tallyPublicKey, share));
+  trusteeCount.increment(1);
+}
+
+// Ends voting and moves to TALLYING, so trustees can begin producing shares. Permitted
+// once the deadline has passed — by anyone, so a poll cannot be held open indefinitely by
+// an organizer who dislikes the direction it is going — or early by the organizer.
+export circuit closeVoting(): [] {
   assert(pollState == PollState.OPEN, "Poll is not currently open");
+  const isOwner = disclose(derivedPublicKey(localSecretKey(), pad(32, "0"))) == owner;
+  const deadlinePassed = votingDeadline > 0 && kernel.blockTimeGreaterThan(votingDeadline);
+  assert(isOwner || deadlinePassed, "Only the creator may close voting before the deadline");
+  pollState = PollState.TALLYING;
+}
+
+// Submits this trustee's decryption share x_i * C1.
+//
+// The circuit recomputes g^(x_i) from the same witness and checks it against the key the
+// trustee registered, so a share that does not correspond to their registered key is
+// rejected. That is what makes the shares verifiable without a separate sigma protocol —
+// the ZK circuit *is* the proof of correct decryption.
+export circuit submitDecryptionShare(): [] {
+  assert(pollState == PollState.TALLYING, "Voting must close before shares can be submitted");
+  const identity = disclose(derivedPublicKey(localSecretKey(), pad(32, "0")));
+  assert(trusteeKeys.member(identity), "Not a registered trustee for this poll");
+  assert(!decryptionShares.member(identity), "Share already submitted");
+
+  const x = tallySecretKey();
+  assert(ecMulGenerator(x) == trusteeKeys.lookup(identity), "Share does not match your registered key");
+
+  const share = ecMul(encTallyC1, x);
+  decryptionShares.insert(identity, disclose(share));
+  combinedShares = disclose(ecAdd(combinedShares, share));
+  shareCount.increment(1);
+}
+
+export circuit castVote(): [] {
+  assert(pollState == PollState.OPEN, "Poll is not currently open");
+  // Enforced by the chain, not by the organizer remembering to close on time — which
+  // also means the organizer cannot extend voting after seeing how it is going.
+  assert(
+    votingDeadline == 0 || kernel.blockTimeLessThan(votingDeadline),
+    "Voting has closed — the deadline has passed"
+  );
+
+  const sk = localSecretKey();
+
+  // Eligibility: prove membership in the roll without revealing which leaf. Binding the
+  // path to this voter's own commitment is essential — without it, any valid path
+  // belonging to another enrolled member could simply be replayed.
+  const path = eligibilityPath();
+  assert(path.leaf == voterCommitment(sk), "Path does not match your commitment");
+  assert(
+    eligibility.checkRoot(disclose(merkleTreePathRoot<10, Bytes<32>>(path))),
+    "Not an eligible voter"
+  );
+
+  const nullifier = disclose(voteNullifier(sk, pollId));
+
+  // The ballot. `choice` is a witness and is never disclosed; the circuit still
+  // constrains it to a legal value, so an encrypted ballot cannot smuggle in a weight
+  // of 500 or a nonsense option. That constraint is what makes secrecy safe here.
+  const choice = ballotChoice();
   assert(choice <= 2, "Invalid choice: 0=Yes, 1=No, 2=Abstain");
+  const m = encodeChoice(choice);
+  const r = ballotRandomness();
 
-  // One ballot per secret key, per poll. The nullifier is a one-way hash of a secret
-  // the chain never sees, so it enforces this without identifying the voter.
-  const nullifier = disclose(voteNullifier(localSecretKey(), pollId));
-  assert(!spentNullifiers.member(nullifier), "This key has already voted in this poll");
-  spentNullifiers.insert(nullifier);
+  // (c1, c2) = (g^r, H^r * g^m)
+  const c1 = ecMulGenerator(r);
+  const c2 = ecAdd(ecMul(tallyPublicKey, r), ecMulGenerator(m));
 
-  const publicChoice = disclose(choice);
-  if (publicChoice == 0) {
-    yesVotes.increment(1);
-  } else if (publicChoice == 1) {
-    noVotes.increment(1);
+  // Re-voting replaces the earlier ballot instead of being rejected. Only the last one
+  // counts, so a voter coerced into a particular choice can quietly overwrite it later
+  // — which is what makes a receipt worthless to a briber.
+  if (priorBallotC1.member(nullifier)) {
+    encTallyC1 = disclose(ecAdd(ecAdd(encTallyC1, negatePoint(priorBallotC1.lookup(nullifier))), c1));
+    encTallyC2 = disclose(ecAdd(ecAdd(encTallyC2, negatePoint(priorBallotC2.lookup(nullifier))), c2));
   } else {
-    abstainVotes.increment(1);
+    encTallyC1 = disclose(ecAdd(encTallyC1, c1));
+    encTallyC2 = disclose(ecAdd(encTallyC2, c2));
+    // Counts distinct voters, not transactions — an override is not a second ballot.
+    ballotCount.increment(1);
   }
+
+  priorBallotC1.insert(nullifier, disclose(c1));
+  priorBallotC2.insert(nullifier, disclose(c2));
 }
 
-export circuit closePoll(): [] {
-  assert(pollState == PollState.OPEN, "Poll is not currently open");
-  const callerPk = disclose(derivedPublicKey(localSecretKey(), pad(32, "0")));
-  assert(callerPk == owner, "Only the poll creator can close the poll");
+// Decrypts and publishes the aggregate. The organizer solves the (small) discrete log
+// off-chain, then submits the counts here; this circuit re-encrypts them and checks the
+// result against the accumulated ciphertext, so a dishonest organizer cannot publish a
+// tally that does not match the ballots actually cast.
+//
+//   valid  <=>  C2 == g^total + x*C1        (avoids needing point subtraction)
+// Publishes the decrypted result.
+//
+// Deliberately permissionless: once every trustee has submitted a share, the combined
+// value is public, so anyone can search for the matching counts and publish them. The
+// organizer is not a gatekeeper on the result being seen — they cannot sit on an outcome
+// they dislike.
+//
+// Correctness is enforced by re-encryption:
+//
+//   valid  <=>  C2 == g^total + combinedShares
+//
+// where combinedShares == x * C1 for the joint secret x. Submitting counts that do not
+// match the ballots fails this check, so the published numbers cannot disagree with the
+// votes actually cast.
+export circuit publishTally(yes: Uint<32>, no: Uint<32>, abstain: Uint<32>): [] {
+  assert(pollState == PollState.TALLYING, "Voting must close before the tally is published");
+  assert(shareCount == trusteeCount, "Not every trustee has submitted a decryption share");
+
+  const total = (yes as Field)
+    + (no as Field) * (65536 as Field)
+    + (abstain as Field) * (4294967296 as Field);
+
+  assert(
+    encTallyC2 == ecAdd(ecMulGenerator(total), combinedShares),
+    "Published tally does not match the encrypted ballots"
+  );
+
+  finalYes = disclose(yes);
+  finalNo = disclose(no);
+  finalAbstain = disclose(abstain);
+  quorumMet = disclose(ballotCount >= quorum as Uint<64>);
+  tallied = true;
   pollState = PollState.CLOSED;
 }

@@ -64,3 +64,6 @@ managed/
 .midnight-expert
 # Local working docs (design notes, submission drafts)
 docs/
+
+# Local integration notes
+api/INTEGRATION.md
