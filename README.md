@@ -297,6 +297,12 @@ Contract Address: 0200dbf964f541e1950883f5b2f539b66fd6111e46ce8e6e9551fbdd180114
 
 ---
 
+## Demo
+
+📹 **[Watch the demo video](https://drive.google.com/drive/folders/17Wp-457jbYBe5BfflG4Z4f4I7z0sTcat?usp=sharing)** — walkthrough of deploying a poll, connecting a wallet, and casting a vote on Midnight Preprod.
+
+---
+
 ## Screenshots
 
 ### Web UI — Landing Page
@@ -311,11 +317,37 @@ Contract Address: 0200dbf964f541e1950883f5b2f539b66fd6111e46ce8e6e9551fbdd180114
 
 ---
 
-## Initial Idea
+## The Idea
 
-**Idea #11 — Private Polling** from the Midnight Builder Level 1 Challenge, carried forward for Level 3 as **Private Voting** (anonymous ballots with publicly verifiable tallies) from the Level 3 provided idea list.
+**Idea #11 — Private Polling** from the Midnight Builder Level 1 Challenge, carried forward
+for Level 3 as **Private Voting** (anonymous ballots with publicly verifiable tallies).
 
-The goal: allow anonymous, verifiable on-chain voting where individual choices are confidential via ZK proofs, while aggregate tallies remain transparent and cryptographically verifiable on the Midnight ledger.
+The goal: anonymous, verifiable on-chain voting where individual choices are confidential via
+ZK proofs, while aggregate tallies remain transparent and cryptographically verifiable on the
+Midnight ledger.
+
+### Where it stands
+
+Levels 1–3 delivered a deployed, working contract with a UI and CLI, and genuine ZK creator
+authentication. It does **not** yet deliver ballot secrecy — see
+[Known limitations](#known-limitations). The project is a privacy-preserving *deployment*,
+not yet a private *ballot*.
+
+### Roadmap — BallotBox
+
+Turning it into a real anonymous ballot system needs four mechanisms, detailed in
+[`PRIVACY.md`](./PRIVACY.md) and specified in [`contract/DESIGN-V2.md`](./contract/DESIGN-V2.md):
+
+| Mechanism | What it fixes |
+|---|---|
+| **Merkle eligibility** — prove allowlist membership in ZK without revealing which leaf | Anyone can currently vote |
+| **Nullifiers** — `hash(voterSecret, pollId)` in a spent set | One key can currently vote unlimited times |
+| **Homomorphic tallying** — aggregate encrypted ballots, open only the sum | Vote choices are currently public |
+| **Vote overriding** — re-vote, last one counts, ciphertexts indistinguishable | A voter can currently prove their vote to a briber |
+
+Why Midnight specifically: `disclose()` makes the privacy boundary auditable — every value
+that becomes public must be marked in the source, so a reviewer can enumerate exactly what
+leaks. That is how the gap above was found in this very contract.
 
 ---
 
