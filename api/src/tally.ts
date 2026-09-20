@@ -1,7 +1,15 @@
 import * as PrivatePolling from '../../contract/src/managed/private-polling/contract/index.js';
+import { jubjubPointX, jubjubPointY, type JubjubPoint } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
 
 /** Radix used by the contract's `encodeChoice` to pack three counts into one field element. */
 const RADIX = 65536n;
+
+/**
+ * Compares curve points by coordinate. Points carry `bigint` coordinates, so the obvious
+ * `JSON.stringify` comparison throws — which silently made every publish attempt fail.
+ */
+const samePoint = (a: JubjubPoint, b: JubjubPoint): boolean =>
+  jubjubPointX(a) === jubjubPointX(b) && jubjubPointY(a) === jubjubPointY(b);
 
 export type DecryptedTally = {
   readonly yes: bigint;
@@ -35,22 +43,16 @@ export type DecryptedTally = {
  * correspond to these ballots. Callers should surface that rather than publishing.
  */
 export const decryptTally = (
-  encTallyC2: unknown,
-  combinedShares: unknown,
+  encTallyC2: JubjubPoint,
+  combinedShares: JubjubPoint,
   ballotCount: bigint,
 ): DecryptedTally | null => {
-  const target = JSON.stringify(encTallyC2);
-
   for (let yes = 0n; yes <= ballotCount; yes++) {
     for (let no = 0n; no <= ballotCount - yes; no++) {
       const abstain = ballotCount - yes - no;
       const total = yes + no * RADIX + abstain * RADIX * RADIX;
-      const candidate = PrivatePolling.pureCircuits.tallyCandidate(
-        total,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JubjubPoint is opaque here
-        combinedShares as any,
-      );
-      if (JSON.stringify(candidate) === target) {
+      const candidate = PrivatePolling.pureCircuits.tallyCandidate(total, combinedShares);
+      if (samePoint(candidate, encTallyC2)) {
         return { yes, no, abstain };
       }
     }
