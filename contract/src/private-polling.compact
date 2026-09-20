@@ -2,8 +2,6 @@ pragma language_version 0.23.0;
 
 import CompactStandardLibrary;
 
-// Poll lifecycle. Enrollment must finish before voting opens, so the eligibility roll is
-// frozen for the whole voting window and cannot be stuffed once ballots are being cast.
 // Poll lifecycle:
 //
 //   CLOSED -> REGISTRATION -> OPEN -> TALLYING -> CLOSED
@@ -18,10 +16,32 @@ export ledger pollQuestion: Maybe<Opaque<"string">>;
 export ledger owner: Bytes<32>;
 export ledger sequence: Counter;
 
+// The deployer's identity hash, fixed at construction. Only the admin may start a poll.
+// Without this, whoever reached a CLOSED contract first could claim the next poll — on a
+// shared demo contract that is an open invitation to squat on it.
+export ledger admin: Bytes<32>;
+
 // The eligibility roll: a Merkle tree of voter commitments. Depth 10 holds up to 1024
 // enrolled voters. Depth is fixed at compile time and drives proving cost, so it is the
 // main knob if a larger roll is ever needed.
-export ledger eligibility: MerkleTree<10, Bytes<32>>;
+//
+// Historic rather than plain: `checkRoot` accepts any root the tree has had during this
+// poll. With open enrollment the roll can grow while ballots are being proven, and a plain
+// tree would reject every in-flight ballot whose proof was built against the previous root.
+export ledger eligibility: HistoricMerkleTree<10, Bytes<32>>;
+
+// Commitments already on the roll. Leaves are public anyway (a wallet has to find its own
+// path), so this discloses nothing new — it stops one commitment occupying several of the
+// roll's 1024 slots.
+export ledger enrolledCommitments: Set<Bytes<32>>;
+
+// When true, any wallet may add its own commitment while the poll is in REGISTRATION or
+// OPEN. When false, only the organizer enrolls, and only before voting opens.
+//
+// Open enrollment trades Sybil resistance for reach: one person holding several keys can
+// enrol several times. That is the right trade for a public community poll and the wrong
+// one for a binding vote, which is why it is chosen per poll rather than fixed.
+export ledger openEnrollment: Boolean;
 
 // Each voter's most recent ballot ciphertext, keyed by their nullifier. Membership is
 // what enforces one *counted* ballot per credential; storing the ciphertext is what makes
@@ -81,11 +101,21 @@ export ledger votingDeadline: Uint<64>;
 export ledger quorum: Uint<32>;
 export ledger quorumMet: Boolean;
 
-// Published only once the organizer decrypts and proves the aggregate. Zero beforehand.
+// Published only once every trustee has contributed and the counts are proven. Zero
+// beforehand.
 export ledger tallied: Boolean;
 export ledger finalYes: Uint<32>;
 export ledger finalNo: Uint<32>;
 export ledger finalAbstain: Uint<32>;
+
+// ── Participant check-in ────────────────────────────────────────────────────────────
+//
+// Wallets that have opted in to being counted as users of this deployment, keyed by the
+// coin public key the wallet presented. Deliberately unconnected to polls and ballots: it
+// is never reset by `createPoll`, no voting circuit reads it, and a voter who never checks
+// in loses nothing. It lets usage be verified on-chain without weakening ballot anonymity
+// — the set says who *used* the product, never how anyone voted.
+export ledger participants: Set<Bytes<32>>;
 
 witness localSecretKey(): Bytes<32>;
 
@@ -101,8 +131,8 @@ witness ballotChoice(): Uint<8>;
 // with the same choice produce identical ciphertexts and become linkable.
 witness ballotRandomness(): Field;
 
-// The organizer's tally secret x, derived from their secret key by the wallet. Only ever
-// read inside `publishTally`, and never disclosed.
+// A trustee's tally secret x_i, derived from their secret key by the wallet. Read only in
+// `registerTrustee` and `submitDecryptionShare`, and never disclosed.
 witness tallySecretKey(): Field;
 
 export circuit derivedPublicKey(sk: Bytes<32>, sequence: Bytes<32>): Bytes<32> {
@@ -124,13 +154,6 @@ export circuit voteNullifier(sk: Bytes<32>, poll: Bytes<32>): Bytes<32> {
   ]);
 }
 
-// Choices are encoded into disjoint digit positions of a single field element, so one
-// homomorphic sum carries all three counts at once:
-//
-//   total = yes + no * 2^16 + abstain * 2^32
-//
-// The radix must exceed the maximum number of ballots or the digits would carry into one
-// another and corrupt the tally. 2^16 = 65536 against a 1024-voter roll leaves ample room.
 // Scalar multiplication by (subgroup order - 1) negates a point, which gives point
 // subtraction without a unary minus operator. Needed to remove a voter's previous
 // ballot from the aggregate when they re-vote.
@@ -138,6 +161,24 @@ export circuit negatePoint(p: JubjubPoint): JubjubPoint {
   return ecMul(p, 6554484396890773809930967563523245729705921265872317281365359162392183254198 as Field);
 }
 
+// Key of the identity entry in `priorBallotC1/C2`. Not a possible nullifier in practice: a
+// nullifier is a hash output, and finding a preimage for this value is infeasible.
+export circuit NO_PRIOR_BALLOT(): Bytes<32> {
+  return pad(32, "ballotbox:no-prior-ballot");
+}
+
+// The group identity, 0·G. Computed in-circuit so the prover and the JS runtime agree on it.
+circuit identityPoint(): JubjubPoint {
+  return ecMulGenerator(0 as Field);
+}
+
+// Choices are encoded into disjoint digit positions of a single field element, so one
+// homomorphic sum carries all three counts at once:
+//
+//   total = yes + no * 2^16 + abstain * 2^32
+//
+// The radix must exceed the maximum number of ballots or the digits would carry into one
+// another and corrupt the tally. 2^16 = 65536 against a 1024-voter roll leaves ample room.
 export circuit encodeChoice(choice: Uint<8>): Field {
   if (choice == 0) {
     return 1 as Field;
@@ -149,11 +190,12 @@ export circuit encodeChoice(choice: Uint<8>): Field {
 }
 
 /**
- * Re-encrypts a candidate tally, for the organizer's off-chain decryption search.
+ * Re-encrypts a candidate tally, for an off-chain decryption search against a single
+ * known secret.
  *
  * Exposed as a pure circuit rather than reimplemented in TypeScript so the search and
- * the on-chain check in `publishTally` compute the identical function — a divergence
- * between the two would show up as an unexplainable "tally does not match" failure.
+ * the on-chain check compute the identical function — a divergence between the two
+ * would show up as an unexplainable "tally does not match" failure.
  */
 export circuit expectedTallyPoint(total: Field, c1: JubjubPoint, x: Field): JubjubPoint {
   return ecAdd(ecMulGenerator(total), ecMul(c1, x));
@@ -171,8 +213,10 @@ export circuit tallyCandidate(total: Field, combined: JubjubPoint): JubjubPoint 
 constructor() {
   pollState = PollState.CLOSED;
   pollQuestion = none<Opaque<"string">>();
-  owner = pad(32, "0");
+  admin = disclose(derivedPublicKey(localSecretKey(), pad(32, "0")));
+  owner = admin;
   pollId = pad(32, "0");
+  openEnrollment = false;
   tallied = false;
   quorumMet = false;
   finalYes = 0;
@@ -182,23 +226,45 @@ constructor() {
   quorum = 0;
 }
 
-export circuit createPoll(question: Opaque<"string">, deadline: Uint<64>, minimumBallots: Uint<32>): [] {
+export circuit createPoll(
+  question: Opaque<"string">,
+  deadline: Uint<64>,
+  minimumBallots: Uint<32>,
+  allowSelfEnrollment: Boolean
+): [] {
   assert(pollState == PollState.CLOSED, "A poll is already in progress");
+  const ownerKey = disclose(derivedPublicKey(localSecretKey(), pad(32, "0")));
+  assert(ownerKey == admin, "Only the contract admin can start a poll");
+  owner = ownerKey;
+
   pollQuestion = some<Opaque<"string">>(disclose(question));
   pollState = PollState.REGISTRATION;
   sequence.increment(1);
-
-  const ownerKey = disclose(derivedPublicKey(localSecretKey(), pad(32, "0")));
-  owner = ownerKey;
+  openEnrollment = disclose(allowSelfEnrollment);
 
   // Fresh poll identity, and a clean roll, spent set, and tally, so nothing from a
   // previous poll on this contract carries over.
-  pollId = disclose(persistentHash<Vector<2, Bytes<32>>>([ownerKey, pad(32, "poll")]));
+  //
+  // Chained from the previous poll's id, not derived from the owner alone. An owner-only
+  // id was identical for every poll by the same organizer — giving each voter the same
+  // nullifier in all of them and linking their participation across polls. Chaining makes
+  // every id distinct without reading the `sequence` counter in the same transaction that
+  // increments it, which the prover and the JS runtime disagree on (transcript mismatch).
+  pollId = disclose(persistentHash<Vector<3, Bytes<32>>>([ownerKey, pollId, pad(32, "poll")]));
   priorBallotC1.resetToDefault();
   priorBallotC2.resetToDefault();
+  // Identity sentinel so `castVote` always looks up an existing key (see castVote).
+  priorBallotC1.insert(NO_PRIOR_BALLOT(), identityPoint());
+  priorBallotC2.insert(NO_PRIOR_BALLOT(), identityPoint());
   eligibility.resetToDefault();
-  encTallyC1.resetToDefault();
-  encTallyC2.resetToDefault();
+  enrolledCommitments.resetToDefault();
+  // Curve points are reset to an explicitly computed identity rather than with
+  // `resetToDefault()`. For JubjubPoint the compiled circuit and the JS runtime disagree on
+  // the default — (0,0) vs the identity (0,1) — so the proof server rejects the transcript
+  // ("Public transcript input mismatch") and createPoll can never be submitted. The
+  // simulator runs only the JS side, which is why unit tests did not catch it.
+  encTallyC1 = identityPoint();
+  encTallyC2 = identityPoint();
   ballotCount.resetToDefault();
   tallied = false;
   quorumMet = false;
@@ -210,12 +276,19 @@ export circuit createPoll(question: Opaque<"string">, deadline: Uint<64>, minimu
 
   // The joint key starts empty and is built up as trustees register. Until at least one
   // registers there is no key to encrypt to, which is why `openVoting` requires one.
-  tallyPublicKey.resetToDefault();
+  tallyPublicKey = identityPoint();
   trusteeKeys.resetToDefault();
   trusteeCount.resetToDefault();
   decryptionShares.resetToDefault();
   shareCount.resetToDefault();
-  combinedShares.resetToDefault();
+  combinedShares = identityPoint();
+}
+
+// Shared by both enrollment paths so the duplicate check cannot drift between them.
+circuit addToRoll(commitment: Bytes<32>): [] {
+  assert(!enrolledCommitments.member(commitment), "This commitment is already enrolled");
+  enrolledCommitments.insert(commitment);
+  eligibility.insert(commitment);
 }
 
 export circuit enrollVoter(commitment: Bytes<32>): [] {
@@ -224,7 +297,35 @@ export circuit enrollVoter(commitment: Bytes<32>): [] {
     disclose(derivedPublicKey(localSecretKey(), pad(32, "0"))) == owner,
     "Only the poll creator can enroll voters"
   );
-  eligibility.insert(disclose(commitment));
+  addToRoll(disclose(commitment));
+}
+
+// Adds the caller's commitment to the roll on a poll with open enrollment.
+//
+// The commitment is a circuit argument, so it is public — exactly as it is for organizer
+// enrollment. It is a one-way hash of the voter's secret and is unlinkable to the
+// nullifier their ballot later reveals. Allowed while voting is open too, so people can
+// join a live poll; the historic roll keeps that from invalidating in-flight proofs.
+export circuit selfEnroll(commitment: Bytes<32>): [] {
+  assert(openEnrollment, "This poll only accepts voters enrolled by the organizer");
+  assert(
+    pollState == PollState.REGISTRATION || pollState == PollState.OPEN,
+    "Enrollment is closed"
+  );
+  assert(
+    votingDeadline == 0 || kernel.blockTimeLessThan(votingDeadline),
+    "Voting has closed — the deadline has passed"
+  );
+  addToRoll(disclose(commitment));
+}
+
+// Records that this wallet used the product. Opt-in, and rejected on repeat so the set
+// size is an honest count of distinct wallets. See the `participants` ledger comment for
+// why this is kept apart from everything that touches a ballot.
+export circuit checkIn(): [] {
+  const wallet = disclose(ownPublicKey().bytes);
+  assert(!participants.member(wallet), "This wallet has already checked in");
+  participants.insert(wallet);
 }
 
 export circuit openVoting(): [] {
@@ -326,12 +427,18 @@ export circuit castVote(): [] {
   // Re-voting replaces the earlier ballot instead of being rejected. Only the last one
   // counts, so a voter coerced into a particular choice can quietly overwrite it later
   // — which is what makes a receipt worthless to a briber.
-  if (priorBallotC1.member(nullifier)) {
-    encTallyC1 = disclose(ecAdd(ecAdd(encTallyC1, negatePoint(priorBallotC1.lookup(nullifier))), c1));
-    encTallyC2 = disclose(ecAdd(ecAdd(encTallyC2, negatePoint(priorBallotC2.lookup(nullifier))), c2));
-  } else {
-    encTallyC1 = disclose(ecAdd(encTallyC1, c1));
-    encTallyC2 = disclose(ecAdd(encTallyC2, c2));
+  //
+  // Written without branching on the lookup. A ZK circuit evaluates both arms of an `if`,
+  // so a `lookup(nullifier)` guarded by `member` still runs on a first vote and yields a
+  // default point that is not on the curve — the proof server rejects the whole ballot.
+  // Instead the lookup always hits a key that exists: the voter's own earlier ballot, or
+  // the identity sentinel `createPoll` stores. Subtracting the identity is a no-op, so one
+  // expression serves both a first vote and an override.
+  const hasPrior = priorBallotC1.member(nullifier);
+  const priorKey = hasPrior ? nullifier : NO_PRIOR_BALLOT();
+  encTallyC1 = disclose(ecAdd(ecAdd(encTallyC1, negatePoint(priorBallotC1.lookup(priorKey))), c1));
+  encTallyC2 = disclose(ecAdd(ecAdd(encTallyC2, negatePoint(priorBallotC2.lookup(priorKey))), c2));
+  if (!hasPrior) {
     // Counts distinct voters, not transactions — an override is not a second ballot.
     ballotCount.increment(1);
   }
@@ -340,12 +447,6 @@ export circuit castVote(): [] {
   priorBallotC2.insert(nullifier, disclose(c2));
 }
 
-// Decrypts and publishes the aggregate. The organizer solves the (small) discrete log
-// off-chain, then submits the counts here; this circuit re-encrypts them and checks the
-// result against the accumulated ciphertext, so a dishonest organizer cannot publish a
-// tally that does not match the ballots actually cast.
-//
-//   valid  <=>  C2 == g^total + x*C1        (avoids needing point subtraction)
 // Publishes the decrypted result.
 //
 // Deliberately permissionless: once every trustee has submitted a share, the combined
