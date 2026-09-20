@@ -5,11 +5,22 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlined';
 import LinkIcon from '@mui/icons-material/Link';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
 import { TextPromptDialog } from './TextPromptDialog';
+import { tokens } from '../config/theme';
 
 export interface EmptyCardContentProps {
   onCreateBoardCallback: () => void;
   onJoinBoardCallback: (contractAddress: ContractAddress) => void;
 }
+
+/** Extracts a contract address from either a bare address or a pasted invite link. */
+const addressFromInput = (text: string): string => {
+  const trimmed = text.trim();
+  try {
+    return new URL(trimmed).searchParams.get('poll') ?? trimmed;
+  } catch {
+    return trimmed;
+  }
+};
 
 export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
   onCreateBoardCallback,
@@ -19,42 +30,31 @@ export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
 
   return (
     <CardContent sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* Icon + title */}
       <Box sx={{ textAlign: 'center', pt: 1 }}>
-        <HowToVoteIcon sx={{ fontSize: 48, color: 'rgba(168,168,168,0.5)', mb: 1 }} />
-        <Typography variant="body1" sx={{ fontWeight: 700, color: '#e0e0e0' }}>
-          Private Poll
+        <HowToVoteIcon sx={{ fontSize: 48, color: tokens.inkFaint, mb: 1 }} />
+        <Typography variant="body1" sx={{ fontWeight: 700, color: tokens.ink }}>
+          Create your own poll
         </Typography>
         <Typography
           data-testid="board-posted-message"
           variant="caption"
-          sx={{ color: '#888', display: 'block', mt: 0.5 }}
+          sx={{ color: tokens.inkMuted, display: 'block', mt: 0.5 }}
         >
-          Deploy a new poll contract or join one that already exists.
+          Deploy a poll contract you control, or open one someone shared with you.
         </Typography>
       </Box>
 
-      <Divider sx={{ borderColor: 'rgba(168,168,168,0.1)' }} />
+      <Divider sx={{ borderColor: tokens.rule }} />
 
-      {/* Action buttons */}
       <Button
         data-testid="board-deploy-btn"
         variant="contained"
         fullWidth
         startIcon={<AddCircleOutlineIcon />}
         onClick={onCreateBoardCallback}
-        sx={{
-          backgroundColor: 'rgba(168,168,168,0.15)',
-          color: '#e0e0e0',
-          border: '1px solid rgba(168,168,168,0.3)',
-          textTransform: 'none',
-          fontWeight: 600,
-          '&:hover': {
-            backgroundColor: 'rgba(168,168,168,0.25)',
-          },
-        }}
+        sx={{ textTransform: 'none', fontWeight: 600 }}
       >
-        Deploy New Poll
+        Deploy a new poll contract
       </Button>
 
       <Button
@@ -63,36 +63,24 @@ export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
         fullWidth
         startIcon={<LinkIcon />}
         onClick={() => setTextPromptOpen(true)}
-        sx={{
-          borderColor: 'rgba(168,168,168,0.3)',
-          color: '#a8a8a8',
-          textTransform: 'none',
-          fontWeight: 600,
-          '&:hover': {
-            borderColor: 'rgba(168,168,168,0.6)',
-            backgroundColor: 'rgba(168,168,168,0.05)',
-          },
-        }}
+        sx={{ textTransform: 'none', fontWeight: 600 }}
       >
-        Join Existing Poll
+        Open a poll by link or address
       </Button>
 
-      {/* Hint */}
-      <Typography variant="caption" sx={{ color: '#555', textAlign: 'center' }}>
-        Requires Midnight Lace or 1AM wallet extension
-      </Typography>
-      <Typography variant="caption" sx={{ color: '#555', textAlign: 'center', display: 'block' }}>
-        Once your wallet is connected, deploying opens a fresh poll you control; joining lets you vote on one that
-        already exists — every choice stays private via ZK proofs.
+      <Typography variant="caption" sx={{ color: tokens.inkFaint, textAlign: 'center', lineHeight: 1.5 }}>
+        Deploying makes your wallet the contract admin. Back up your key afterwards (the key icon on the poll card) — it
+        is the only way to run future polls on that contract.
       </Typography>
 
       <TextPromptDialog
-        prompt="Enter Poll Contract Address"
+        prompt="Paste an invite link or poll contract address"
         isOpen={textPromptOpen}
         onCancel={() => setTextPromptOpen(false)}
         onSubmit={(text) => {
           setTextPromptOpen(false);
-          onJoinBoardCallback(text);
+          const address = addressFromInput(text);
+          if (address) onJoinBoardCallback(address);
         }}
       />
     </CardContent>
