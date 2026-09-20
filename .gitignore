@@ -62,8 +62,13 @@ managed/
 
 .claude
 .midnight-expert
-# Local working docs (design notes, submission drafts)
-docs/
 
-# Local integration notes
-api/INTEGRATION.md
+
+# Secrets — organizer/voter key backups and wallet seeds
+.secrets/
+*.key.json
+ballotbox-key-*.json
+.env.local
+
+# Local deploy output
+.vercel
