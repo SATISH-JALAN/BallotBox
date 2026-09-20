@@ -34,8 +34,7 @@ import {
   Transaction,
   TransactionId,
 } from '@midnight-ntwrk/midnight-js-protocol/ledger';
-import { PrivatePollingPrivateState } from '@midnight-ntwrk/private-polling-contract';
-import { inMemoryPrivateStateProvider } from '../in-memory-private-state-provider';
+import { localStoragePrivateStateProvider } from '../private-state/local-storage-private-state-provider';
 import { NetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import type { UnboundTransaction } from '@midnight-ntwrk/midnight-js-types';
 
@@ -146,10 +145,11 @@ const initializeProviders = async (logger: Logger): Promise<PrivatePollingProvid
   const zkConfigPath = window.location.origin;
   const keyMaterialProvider = new FetchZkConfigProvider<PrivatePollingCircuitKeys>(zkConfigPath, fetch.bind(window));
   const config = await connectedAPI.getConfiguration();
-  const inMemoryPollingPrivateStateProvider = inMemoryPrivateStateProvider<string, PrivatePollingPrivateState>();
   const shieldedAddresses = await connectedAPI.getShieldedAddresses();
   return {
-    privateStateProvider: inMemoryPollingPrivateStateProvider,
+    // Persisted: the secret key is the voter credential, organizer authority and trustee
+    // share all at once, so it must survive a reload. See the provider for what is kept.
+    privateStateProvider: localStoragePrivateStateProvider(networkId),
     zkConfigProvider: keyMaterialProvider,
     proofProvider: httpClientProofProvider(config.proverServerUri!, keyMaterialProvider),
     publicDataProvider: indexerPublicDataProvider(config.indexerUri, config.indexerWsUri),
@@ -222,7 +222,7 @@ const connectToWallet = (logger: Logger, networkId: string): Promise<ConnectedAP
         with: () =>
           throwError(() => {
             logger.error('Could not find wallet connector API');
-            return new Error('Could not find Midnight Lace wallet. Extension installed?');
+            return new Error('Could not find a Midnight wallet (Lace or 1AM). Extension installed?');
           }),
       }),
       concatMap(async (initialAPI) => {
@@ -236,16 +236,17 @@ const connectToWallet = (logger: Logger, networkId: string): Promise<ConnectedAP
         with: () =>
           throwError(() => {
             logger.error('Wallet connector API has failed to respond');
-            return new Error('Midnight Lace wallet has failed to respond. Extension enabled?');
+            return new Error('Your Midnight wallet has failed to respond. Extension enabled and synced?');
           }),
       }),
-      catchError((error, apis) =>
-        error
-          ? throwError(() => {
-              logger.error('Unable to enable connector API ' + error);
-              return new Error('Application is not authorized');
-            })
-          : apis,
+      catchError((error: unknown) =>
+        throwError(() => {
+          logger.error({ error }, 'Unable to enable connector API');
+          // Keep the wallet's own message: "not authorized", "wrong network" and "extension
+          // missing" need different fixes, and collapsing them hides which one applies.
+          const detail = error instanceof Error ? error.message : String(error);
+          return new Error(`Could not connect to your Midnight wallet: ${detail}`);
+        }),
       ),
     ),
   );
