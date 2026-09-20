@@ -20,7 +20,7 @@
 import { WebSocket } from 'ws';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 import { assertIsContractAddress, toHex } from '@midnight-ntwrk/midnight-js-utils';
-import { ledger, PollState } from '../../contract/src/managed/private-polling/contract/index.js';
+import { ledger, PollState, pureCircuits } from '../../contract/src/managed/private-polling/contract/index.js';
 import { decryptTally } from '../../api/src/tally.js';
 import { PreprodRemoteConfig } from './config.js';
 import { createLogger } from './logger-utils.js';
@@ -44,7 +44,8 @@ async function main(): Promise<void> {
   const config = new PreprodRemoteConfig();
   const logger = await createLogger(config.logDir);
   const testEnv = config.getEnvironment(logger);
-  const envConfiguration = await testEnv.start();
+  // Read-only: only the indexer is needed, so skip the proof server and node health checks.
+  const envConfiguration = testEnv.getEnvironmentConfiguration();
 
   try {
     const provider = indexerPublicDataProvider(envConfiguration.indexer, envConfiguration.indexerWS);
@@ -56,7 +57,10 @@ async function main(): Promise<void> {
     }
 
     const s = ledger(contractState.data.state);
-    const counted = s.priorBallotC1.size();
+    // One entry per distinct credential, plus the identity sentinel createPoll stores so
+    // castVote never looks up a missing key.
+    const sentinel = s.priorBallotC1.member(pureCircuits.NO_PRIOR_BALLOT()) ? 1n : 0n;
+    const counted = s.priorBallotC1.size() - sentinel;
     const total = s.finalYes + s.finalNo + s.finalAbstain;
 
     console.log(`\n${'='.repeat(60)}`);
@@ -66,7 +70,7 @@ async function main(): Promise<void> {
     console.log(`Question:  ${s.pollQuestion.is_some ? s.pollQuestion.value : '(none)'}`);
     console.log(`State:     ${PollState[s.pollState]}`);
     console.log(`Owner:     ${toHex(s.owner)}`);
-    console.log(`Enrolled:  ${s.eligibility.firstFree()}`);
+    console.log(`Enrolled:  ${s.enrolledCommitments.size()}`);
     console.log(`Ballots:   ${counted}`);
     console.log(`Trustees:  ${s.shareCount} of ${s.trusteeCount} shares submitted`);
     console.log('');
@@ -95,8 +99,8 @@ async function main(): Promise<void> {
       ),
       check(
         'Every ballot fits the eligibility roll',
-        counted <= s.eligibility.firstFree(),
-        `${counted} ballots from a roll of ${s.eligibility.firstFree()}`,
+        counted <= s.enrolledCommitments.size(),
+        `${counted} ballots from a roll of ${s.enrolledCommitments.size()}`,
       ),
       check(
         'Ciphertext pair is populated',
