@@ -23,6 +23,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { type InitialAPI, type ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
 import { type NetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import semver from 'semver';
+import { mono, tokens } from '../config/theme';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -161,7 +162,12 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ networ
   switch (status) {
     case 'checking':
       return (
-        <Button disabled size="small" startIcon={<CircularProgress size={12} sx={{ color: '#555' }} />} sx={btnStyle}>
+        <Button
+          disabled
+          size="small"
+          startIcon={<CircularProgress size={12} sx={{ color: tokens.inkFaint }} />}
+          sx={btnStyle}
+        >
           Detecting wallet…
         </Button>
       );
@@ -178,9 +184,9 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ networ
             startIcon={<AccountBalanceWalletIcon sx={{ fontSize: 15 }} />}
             sx={{
               ...btnStyle,
-              borderColor: 'rgba(244,67,54,0.5)',
-              color: '#f44336',
-              '&:hover': { borderColor: '#f44336', backgroundColor: 'rgba(244,67,54,0.08)' },
+              borderColor: tokens.against,
+              color: tokens.against,
+              '&:hover': { borderColor: tokens.against, backgroundColor: 'rgba(163,63,44,0.06)' },
             }}
           >
             Install Wallet
@@ -196,9 +202,10 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ networ
           startIcon={<AccountBalanceWalletIcon sx={{ fontSize: 15 }} />}
           sx={{
             ...btnStyle,
-            borderColor: 'rgba(168,168,168,0.4)',
-            color: '#e0e0e0',
-            '&:hover': { borderColor: '#fff', backgroundColor: 'rgba(255,255,255,0.07)' },
+            borderColor: tokens.ink,
+            backgroundColor: tokens.ink,
+            color: tokens.surface,
+            '&:hover': { borderColor: '#000', backgroundColor: '#000' },
           }}
         >
           Connect Wallet
@@ -210,7 +217,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ networ
         <Button
           disabled
           size="small"
-          startIcon={<CircularProgress size={12} sx={{ color: '#a8a8a8' }} />}
+          startIcon={<CircularProgress size={12} sx={{ color: tokens.inkMuted }} />}
           sx={btnStyle}
         >
           Connecting…
@@ -222,19 +229,19 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ networ
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Chip
             data-testid="wallet-address-chip"
-            icon={<CheckCircleIcon sx={{ fontSize: '14px !important', color: '#4caf50 !important' }} />}
+            icon={<CheckCircleIcon sx={{ fontSize: '14px !important', color: `${tokens.affirm} !important` }} />}
             label={
               <Tooltip title={walletInfo?.fullAddress ?? ''} placement="bottom">
-                <Typography component="span" sx={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700 }}>
+                <Typography component="span" sx={{ fontSize: 12, fontFamily: mono, fontWeight: 600 }}>
                   {walletInfo?.shortAddress}
                 </Typography>
               </Tooltip>
             }
             size="small"
             sx={{
-              backgroundColor: 'rgba(76,175,80,0.12)',
-              border: '1px solid rgba(76,175,80,0.5)',
-              color: '#4caf50',
+              backgroundColor: 'transparent',
+              border: `1px solid ${tokens.rule}`,
+              color: tokens.affirm,
               px: 0.5,
             }}
           />
@@ -247,13 +254,13 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ networ
                 ...btnStyle,
                 minWidth: 0,
                 px: 1,
-                borderColor: confirmingDisconnect ? 'rgba(244,67,54,0.6)' : 'rgba(168,168,168,0.2)',
-                color: confirmingDisconnect ? '#f44336' : '#666',
-                backgroundColor: confirmingDisconnect ? 'rgba(244,67,54,0.08)' : 'transparent',
+                borderColor: confirmingDisconnect ? tokens.against : tokens.rule,
+                color: confirmingDisconnect ? tokens.against : tokens.inkMuted,
+                backgroundColor: 'transparent',
                 '&:hover': {
-                  borderColor: 'rgba(244,67,54,0.4)',
-                  color: '#f44336',
-                  backgroundColor: 'rgba(244,67,54,0.05)',
+                  borderColor: tokens.against,
+                  color: tokens.against,
+                  backgroundColor: 'rgba(163,63,44,0.05)',
                 },
               }}
             >
@@ -267,14 +274,14 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ networ
       return (
         <Tooltip title={`${errorMessage} — click to retry`}>
           <Chip
-            icon={<ErrorOutlineIcon sx={{ fontSize: '14px !important', color: '#f44336 !important' }} />}
+            icon={<ErrorOutlineIcon sx={{ fontSize: '14px !important', color: `${tokens.against} !important` }} />}
             label="Connection failed"
             size="small"
             onClick={handleRetry}
             sx={{
-              backgroundColor: 'rgba(244,67,54,0.1)',
-              border: '1px solid rgba(244,67,54,0.4)',
-              color: '#f44336',
+              backgroundColor: 'transparent',
+              border: `1px solid ${tokens.against}`,
+              color: tokens.against,
               fontSize: 11,
               cursor: 'pointer',
             }}
@@ -293,6 +300,6 @@ const btnStyle = {
   fontWeight: 600,
   px: 1.5,
   py: 0.5,
-  borderRadius: 1.5,
+  borderRadius: 1,
   minWidth: 0,
 } as const;
