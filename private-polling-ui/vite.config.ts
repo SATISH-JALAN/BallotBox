@@ -13,15 +13,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { defineConfig } from 'vite';
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from 'vite-plugin-top-level-await';
-// import { nodePolyfills } from 'vite-plugin-node-polyfills';
+
+const MANAGED_DIR = resolve(__dirname, '../contract/src/managed/private-polling');
+
+/**
+ * Serves the compiled circuit keys and ZKIR at /keys and /zkir during `vite dev`.
+ *
+ * The browser fetches them from the page origin to build proofs. Production copies them
+ * into dist/ (scripts/copy-zk-assets.mjs); without this, every transaction attempted from
+ * the dev server fails at proving time with an opaque fetch error.
+ */
+const serveZkAssets = (): Plugin => ({
+  name: 'serve-zk-assets',
+  apply: 'serve',
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      const url = req.url?.split('?')[0] ?? '';
+      if (!/^\/(keys|zkir)\/[\w.-]+$/.test(url)) return next();
+      const file = resolve(MANAGED_DIR, `.${url}`);
+      if (!file.startsWith(MANAGED_DIR) || !existsSync(file)) return next();
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Length', statSync(file).size);
+      createReadStream(file).pipe(res);
+    });
+  },
+});
 
 // https://vitejs.dev/config/
 export default defineConfig({
   cacheDir: './.vite',
+  server: { port: 5173 },
   build: {
     target: 'esnext',
     minify: false,
@@ -42,6 +69,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    serveZkAssets(),
     react(),
     // Configure WASM plugin with more options
     wasm(),
