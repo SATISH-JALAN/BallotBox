@@ -111,9 +111,8 @@ export class MidnightWalletProvider implements MidnightProvider, WalletProvider 
     };
 
     const initialState = await getInitialShieldedState(logger, wallet.shielded);
-    logger.info(
-      `Your wallet seed is: ${seeds.masterSeed} and your address is: ${initialState.address.coinPublicKeyString()}`,
-    );
+    // Never log the seed: log files get shared when people ask for help.
+    logger.info(`Wallet coin public key: ${initialState.address.coinPublicKeyString()}`);
 
     return new MidnightWalletProvider(
       logger,
