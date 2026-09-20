@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createConstructorContext,
   createCircuitContext,
+  emptyZswapLocalState,
   sampleContractAddress,
   type CircuitContext,
 } from "@midnight-ntwrk/compact-runtime";
@@ -22,6 +23,13 @@ import {
 const COIN_PUBLIC_KEY = "0".repeat(64);
 const ZERO_SEQUENCE = new Uint8Array(32);
 
+/** The bytes Compact emits for pad(32, "0") — the sequence identity hashes are bound to. */
+const OWNER_SEQUENCE = (() => {
+  const bytes = new Uint8Array(32);
+  bytes[0] = 0x30;
+  return bytes;
+})();
+
 const secretKey = (byte: number): Uint8Array => new Uint8Array(32).fill(byte);
 const OWNER = secretKey(1);
 
@@ -32,6 +40,25 @@ const NO_QUORUM = 0n;
 type Ctx = CircuitContext<PrivatePollingPrivateState>;
 
 const contract = new Contract(witnesses);
+
+/**
+ * Starts a poll. Open enrollment defaults off so the organizer-gated path stays the one
+ * most tests exercise; the open-enrollment suite opts in explicitly.
+ */
+const createPoll = (
+  context: Ctx,
+  question: string,
+  deadline: bigint,
+  quorum: bigint,
+  openEnrollment = false,
+) =>
+  contract.impureCircuits.createPoll(
+    context,
+    question,
+    deadline,
+    quorum,
+    openEnrollment,
+  );
 
 const deploy = (secret: Uint8Array): Ctx => {
   const constructorResult = contract.initialState(
@@ -58,6 +85,12 @@ const as = (context: Ctx, secret: Uint8Array, choice?: number): Ctx => ({
 
 const state = (context: Ctx) => ledger(context.currentQueryContext.state);
 
+/** Nullifiers of recorded ballots — every prior-ballot key except the identity sentinel. */
+const ballotNullifiers = (context: Ctx): Uint8Array[] =>
+  [...state(context).priorBallotC1]
+    .map(([key]) => key)
+    .filter((key) => hex(key) !== hex(pureCircuits.NO_PRIOR_BALLOT()));
+
 /**
  * Drives a poll to OPEN with `voters` enrolled and `trustees` registered.
  *
@@ -71,12 +104,7 @@ const openPollWith = (
   quorum = NO_QUORUM,
   trustees: Uint8Array[] = [OWNER],
 ): Ctx => {
-  let ctx = contract.impureCircuits.createPoll(
-    deploy(OWNER),
-    question,
-    deadline,
-    quorum,
-  ).context;
+  let ctx = createPoll(deploy(OWNER), question, deadline, quorum).context;
   for (const t of trustees) {
     ctx = contract.impureCircuits.registerTrustee(as(ctx, t)).context;
   }
@@ -144,7 +172,7 @@ describe("private-polling contract", () => {
   });
 
   it("createPoll enters REGISTRATION and discloses only a hashed owner", () => {
-    const after = contract.impureCircuits.createPoll(
+    const after = createPoll(
       deploy(OWNER),
       "Should we ship v2?",
       NO_DEADLINE,
@@ -162,12 +190,7 @@ describe("private-polling contract", () => {
 
   it("rejects votes while still in REGISTRATION — the roll must be frozen first", () => {
     const voter = secretKey(11);
-    let ctx = contract.impureCircuits.createPoll(
-      deploy(OWNER),
-      "Q",
-      NO_DEADLINE,
-      NO_QUORUM,
-    ).context;
+    let ctx = createPoll(deploy(OWNER), "Q", NO_DEADLINE, NO_QUORUM).context;
     ctx = contract.impureCircuits.enrollVoter(
       as(ctx, OWNER),
       pureCircuits.voterCommitment(voter),
@@ -176,30 +199,15 @@ describe("private-polling contract", () => {
   });
 
   it("rejects opening a second poll while one is already in progress", () => {
-    const ctx = contract.impureCircuits.createPoll(
-      deploy(OWNER),
-      "Q1",
-      NO_DEADLINE,
-      NO_QUORUM,
-    ).context;
+    const ctx = createPoll(deploy(OWNER), "Q1", NO_DEADLINE, NO_QUORUM).context;
     expect(() =>
-      contract.impureCircuits.createPoll(
-        as(ctx, OWNER),
-        "Q2",
-        NO_DEADLINE,
-        NO_QUORUM,
-      ),
+      createPoll(as(ctx, OWNER), "Q2", NO_DEADLINE, NO_QUORUM),
     ).toThrow();
   });
 
   it("only the creator can enroll voters or open voting", () => {
     const impostor = secretKey(99);
-    let ctx = contract.impureCircuits.createPoll(
-      deploy(OWNER),
-      "Q",
-      NO_DEADLINE,
-      NO_QUORUM,
-    ).context;
+    let ctx = createPoll(deploy(OWNER), "Q", NO_DEADLINE, NO_QUORUM).context;
     ctx = contract.impureCircuits.registerTrustee(as(ctx, OWNER)).context;
 
     expect(() =>
@@ -215,12 +223,7 @@ describe("private-polling contract", () => {
 
   it("voting cannot open before a decryption trustee exists", () => {
     // Without a trustee there is no joint key to encrypt ballots to.
-    const ctx = contract.impureCircuits.createPoll(
-      deploy(OWNER),
-      "Q",
-      NO_DEADLINE,
-      NO_QUORUM,
-    ).context;
+    const ctx = createPoll(deploy(OWNER), "Q", NO_DEADLINE, NO_QUORUM).context;
     expect(() => contract.impureCircuits.openVoting(as(ctx, OWNER))).toThrow();
   });
 });
@@ -508,7 +511,8 @@ describe("anonymous-ballot gaps", () => {
     const voter = secretKey(11);
     const after = voteAs(openPollWith([voter]), voter, 0);
 
-    const [[nullifier]] = [...state(after).priorBallotC1];
+    const [nullifier] = ballotNullifiers(after);
+    expect(ballotNullifiers(after)).toHaveLength(1);
     expect(hex(nullifier)).not.toEqual(hex(voter));
     expect(hex(nullifier)).not.toEqual(
       hex(pureCircuits.derivedPublicKey(voter, ZERO_SEQUENCE)),
@@ -526,8 +530,9 @@ describe("anonymous-ballot gaps", () => {
     ctx = voteAs(ctx, voter, 0); // coerced Yes
     ctx = voteAs(ctx, voter, 1); // quietly overridden to No
 
-    // Still one voter, not two.
+    // Still one voter, not two — in the counter and in the stored ballot set.
     expect(state(ctx).ballotCount).toEqual(1n);
+    expect(ballotNullifiers(ctx)).toHaveLength(1);
 
     // And the tally reflects only the final choice.
     const done = publish(ctx, 0n, 1n, 0n);
@@ -571,5 +576,214 @@ describe("anonymous-ballot gaps", () => {
     );
     // The stored ciphertext visibly changed — that fact alone is observable.
     expect(before).not.toEqual(after);
+  });
+});
+
+describe("admin", () => {
+  it("records the deployer as admin", () => {
+    const s = state(deploy(OWNER));
+    expect(hex(s.admin)).toEqual(
+      hex(pureCircuits.derivedPublicKey(OWNER, OWNER_SEQUENCE)),
+    );
+  });
+
+  it("only the admin can start a poll — a closed contract cannot be squatted", () => {
+    const squatter = secretKey(66);
+    expect(() =>
+      createPoll(
+        as(deploy(OWNER), squatter),
+        "Mine now",
+        NO_DEADLINE,
+        NO_QUORUM,
+      ),
+    ).toThrow();
+  });
+
+  it("the admin can run consecutive polls on the same contract", () => {
+    const voter = secretKey(11);
+    const first = publish(voteAs(openPollWith([voter]), voter, 0), 1n, 0n, 0n);
+    const second = createPoll(
+      as(first, OWNER),
+      "Q2",
+      NO_DEADLINE,
+      NO_QUORUM,
+    ).context;
+    expect(state(second).pollState).toEqual(PollState.REGISTRATION);
+    expect(state(second).ballotCount).toEqual(0n);
+    expect(state(second).enrolledCommitments.size()).toEqual(0n);
+  });
+});
+
+describe("poll identity", () => {
+  it("CLOSED: each poll gets a fresh id, so a nullifier differs across polls", () => {
+    // Deriving pollId from the owner alone gave every poll by the same organizer the same
+    // id — so each voter's nullifier repeated, linking them across polls.
+    const voter = secretKey(11);
+    const firstOpen = openPollWith([voter]);
+    const firstId = state(firstOpen).pollId;
+    const closed = publish(voteAs(firstOpen, voter, 0), 1n, 0n, 0n);
+
+    const secondId = state(
+      createPoll(as(closed, OWNER), "Q2", NO_DEADLINE, NO_QUORUM).context,
+    ).pollId;
+
+    expect(hex(firstId)).not.toEqual(hex(secondId));
+    expect(hex(pureCircuits.voteNullifier(voter, firstId))).not.toEqual(
+      hex(pureCircuits.voteNullifier(voter, secondId)),
+    );
+  });
+});
+
+describe("enrollment", () => {
+  /** A poll in REGISTRATION with open enrollment and the owner as sole trustee. */
+  const openEnrollmentPoll = (deadline = NO_DEADLINE): Ctx => {
+    const ctx = createPoll(
+      deploy(OWNER),
+      "Q",
+      deadline,
+      NO_QUORUM,
+      true,
+    ).context;
+    return contract.impureCircuits.registerTrustee(as(ctx, OWNER)).context;
+  };
+
+  const selfEnroll = (context: Ctx, secret: Uint8Array): Ctx =>
+    contract.impureCircuits.selfEnroll(
+      as(context, secret),
+      pureCircuits.voterCommitment(secret),
+    ).context;
+
+  it("records whether a poll accepts self-enrollment", () => {
+    expect(state(openEnrollmentPoll()).openEnrollment).toBe(true);
+    expect(state(openPollWith([secretKey(11)])).openEnrollment).toBe(false);
+  });
+
+  it("any wallet can enrol itself on an open-enrollment poll", () => {
+    const voter = secretKey(11);
+    let ctx = selfEnroll(openEnrollmentPoll(), voter);
+    expect(state(ctx).enrolledCommitments.size()).toEqual(1n);
+
+    ctx = contract.impureCircuits.openVoting(as(ctx, OWNER)).context;
+    ctx = voteAs(ctx, voter, 1);
+    expect(state(publish(ctx, 0n, 1n, 0n)).finalNo).toEqual(1n);
+  });
+
+  it("self-enrollment is refused on an organizer-gated poll", () => {
+    let ctx = createPoll(deploy(OWNER), "Q", NO_DEADLINE, NO_QUORUM).context;
+    ctx = contract.impureCircuits.registerTrustee(as(ctx, OWNER)).context;
+    expect(() => selfEnroll(ctx, secretKey(11))).toThrow();
+  });
+
+  it("organizer-gated enrollment still freezes once voting opens", () => {
+    const ctx = openPollWith([secretKey(11)]);
+    expect(() =>
+      contract.impureCircuits.enrollVoter(
+        as(ctx, OWNER),
+        pureCircuits.voterCommitment(secretKey(12)),
+      ),
+    ).toThrow();
+  });
+
+  it("the same commitment cannot take two roll slots", () => {
+    const voter = secretKey(11);
+    const ctx = selfEnroll(openEnrollmentPoll(), voter);
+    expect(() => selfEnroll(ctx, voter)).toThrow();
+    expect(() =>
+      contract.impureCircuits.enrollVoter(
+        as(ctx, OWNER),
+        pureCircuits.voterCommitment(voter),
+      ),
+    ).toThrow();
+  });
+
+  it("late joiners can enrol and vote while the poll is open", () => {
+    const early = secretKey(11);
+    const late = secretKey(12);
+    let ctx = selfEnroll(openEnrollmentPoll(), early);
+    ctx = contract.impureCircuits.openVoting(as(ctx, OWNER)).context;
+    ctx = voteAs(ctx, early, 0);
+
+    ctx = selfEnroll(ctx, late);
+    ctx = voteAs(ctx, late, 0);
+    expect(state(publish(ctx, 2n, 0n, 0n)).finalYes).toEqual(2n);
+  });
+
+  it("a ballot proven against an older roll still counts after someone else enrols", () => {
+    // Open enrollment means the roll can change between a voter building their proof and
+    // the chain checking it. The historic tree accepts any root from this poll, so the
+    // in-flight ballot is not rejected.
+    const voter = secretKey(11);
+    let ctx = selfEnroll(openEnrollmentPoll(), voter);
+    ctx = contract.impureCircuits.openVoting(as(ctx, OWNER)).context;
+    const stalePath = state(ctx).eligibility.findPathForLeaf(
+      pureCircuits.voterCommitment(voter),
+    );
+    expect(stalePath).toBeDefined();
+
+    ctx = selfEnroll(ctx, secretKey(12)); // the root moves on
+
+    const withStalePath = new Contract({
+      ...witnesses,
+      eligibilityPath: ({ privateState }) => [privateState, stalePath!],
+    });
+    const after = withStalePath.impureCircuits.castVote(
+      as(ctx, voter, 0),
+    ).context;
+    expect(state(after).ballotCount).toEqual(1n);
+  });
+
+  it("self-enrollment stops once the voting deadline has passed", () => {
+    expect(() => selfEnroll(openEnrollmentPoll(1n), secretKey(11))).toThrow();
+  });
+
+  it("self-enrollment is refused while tallying", () => {
+    const voter = secretKey(11);
+    let ctx = selfEnroll(openEnrollmentPoll(), voter);
+    ctx = contract.impureCircuits.openVoting(as(ctx, OWNER)).context;
+    ctx = contract.impureCircuits.closeVoting(as(ctx, OWNER)).context;
+    expect(() => selfEnroll(ctx, secretKey(12))).toThrow();
+  });
+});
+
+describe("participant check-in", () => {
+  const coinKey = (byte: number): string =>
+    byte.toString(16).padStart(2, "0").repeat(32);
+
+  /** Rebinds the wallet (coin public key) presenting the transaction. */
+  const fromWallet = (context: Ctx, byte: number): Ctx => ({
+    ...context,
+    currentZswapLocalState: emptyZswapLocalState(coinKey(byte)),
+  });
+
+  const checkIn = (context: Ctx, byte: number): Ctx =>
+    contract.impureCircuits.checkIn(fromWallet(context, byte)).context;
+
+  it("counts each distinct wallet once", () => {
+    let ctx = checkIn(deploy(OWNER), 0xa1);
+    ctx = checkIn(ctx, 0xa2);
+    expect(state(ctx).participants.size()).toEqual(2n);
+    expect(
+      state(ctx).participants.member(Buffer.from(coinKey(0xa1), "hex")),
+    ).toBe(true);
+    expect(() => checkIn(ctx, 0xa1)).toThrow();
+  });
+
+  it("works in any poll state and survives a new poll", () => {
+    let ctx = checkIn(openPollWith([secretKey(11)]), 0xa1);
+    ctx = publish(ctx, 0n, 0n, 0n);
+    ctx = createPoll(as(ctx, OWNER), "Q2", NO_DEADLINE, NO_QUORUM).context;
+    expect(state(ctx).participants.size()).toEqual(1n);
+  });
+
+  it("CLOSED: checking in is unconnected to any ballot", () => {
+    // A voter who checks in and then votes must not make their ballot identifiable: the
+    // participant entry is a wallet key, the ballot entry is a nullifier, and neither is
+    // derived from the other.
+    const voter = secretKey(11);
+    let ctx = checkIn(openPollWith([voter]), 0xa1);
+    ctx = voteAs(ctx, voter, 0);
+    const [nullifier] = ballotNullifiers(ctx);
+    expect(hex(nullifier)).not.toEqual(coinKey(0xa1));
+    expect(state(ctx).participants.member(nullifier)).toBe(false);
   });
 });
