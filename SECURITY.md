@@ -1,66 +1,34 @@
-# Midnight Foundation Security Policy
+# Security policy
 
-This document outlines security procedures and general policies for the Midnight Foundation.
+BallotBox is a privacy product, so a flaw that links a voter to a ballot is a serious bug
+even on a test network.
 
-This policy adheres to the [vulnerability management guidance](https://www.linuxfoundation.org/security)
-for Linux Foundation projects.
+## Supported versions
 
-- [Disclosing a security issue](#disclosing-a-security-issue)
-- [Vulnerability management](#vulnerability-management)
-- [Suggesting changes](#suggesting-changes)
+Only the latest release on `main`, and the contract deployed from it
+([`deployments/`](./deployments/)), receives fixes. BallotBox runs on Midnight **Preprod**
+and is not audited. Don't use it for high-stakes votes.
 
-## Disclosing a security issue
+## Reporting a vulnerability
 
-The Midnight foundation takes all security issues seriously, which includes all source code repositories managed
-through our [GitHub organization](https://github.com/midnightntwrk). If you believe you have found a security vulnerability in any Midnight Foundation
-owned repository, _please report it using GitHub's private vulnerability reporting_ and not through public GitHub issues. To learn more about GitHub's
-private vulnerability reporting and how to submit a vulnerability report, please review [GitHub's documentation on private reporting](https://docs.github.com/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability).
+Please **don't open a public issue.** Report privately with
+[GitHub private vulnerability reporting](https://github.com/SATISH-JALAN/private-pooling/security/advisories/new).
 
-Please include the requested information listed below (as much as you can provide) to help us better understand the nature and scope of the possible issue:
+Especially relevant:
 
-- The repository name or URL
-- Type of issue (buffer overflow, SQL injection, cross-site scripting, etc.)
-- Full paths of the source file(s) related to the manifestation of the issue
-- The location of the affected source code (tag/branch/commit or direct URL)
-- Any particular configuration required to reproduce the issue
-- Step-by-step instructions to reproduce the issue
-- Proof-of-concept or exploit code (if possible)
-- Impact of the issue, including how an attacker might exploit the issue
-- This information will help us triage your report more quickly
+- linking a voter, commitment, check-in or wallet to a ballot
+- forging eligibility, reusing or bypassing a nullifier, or inflating the tally
+- publishing a tally that doesn't match the ballots
+- opening the tally without every trustee's share
+- extracting secret keys from the web app, backups or the CLI
 
-A maintainer will acknowledge the report within three (3) business days, and
-will send a more detailed response within an additional three (3) business days
-indicating the next steps in handling your report.
+Include the affected commit or contract address, reproduction steps, and the impact you
+expect. You'll get an acknowledgement within 3 business days and a plan within a further 7.
+The threat model and known, accepted limitations are in [PRIVACY.md](./PRIVACY.md). Please
+check there first.
 
-If you've been unable to successfully draft a vulnerability report via GitHub
-or have not received a response during the alloted response window, please
-reach out via the [Midnight foundation security contact email](mailto:security@midnight.foundation).
+## Handling secrets
 
-After the initial reply to your report, the maintainers will endeavor to keep
-you informed of the progress towards a fix and full announcement, and may ask
-for additional information or guidance.
-
-Thank you for improving the security of Midnight. We appreciate your dedication to responsible disclosure and will
-make every effort to acknowledge your contributions.
-
-## Vulnerability management
-
-When the maintainers receive a disclosure report, they will assign it to a
-primary handler.
-
-This person will coordinate the fix and release process, which involves the
-following steps:
-
-- confirming the issue
-- determining affected versions of the project
-- auditing code to find any potential similar problems
-- preparing fixes for all releases under maintenance
-
-## Preferred Languages
-
-We prefer all communications to be in English.
-
-## Suggesting changes
-
-If you have suggestions on how this process could be improved please submit an
-issue or pull request.
+- Never commit a wallet seed, `.env`, or a `ballotbox-key-*.json` / `.secrets/` file.
+- A seed was hardcoded in an earlier revision of `private-polling-cli/src/deploy-direct.ts`.
+  That wallet is considered compromised and must not be used.
