@@ -103,7 +103,7 @@ const displayLedgerState = async (
     } else {
       logger.info('Tally: encrypted — individual choices are not readable until published');
     }
-    logger.info(`Enrolled voters: ${ledgerState.eligibility.firstFree()}`);
+    logger.info(`Enrolled voters: ${ledgerState.enrolledCommitments.size()}`);
     logger.info(`Current owner is: '${toHex(ledgerState.owner)}'`);
   }
 };
@@ -156,7 +156,9 @@ const displayDerivedState = (state: PrivatePollingDerivedState | undefined, logg
       logger.info('Tally: encrypted — not readable until the creator publishes it');
     }
     logger.info(`Am I the poll creator?: '${state.isOwner ? 'YES' : 'NO'}'`);
-    logger.info(`Enrolled voters: ${state.enrolledCount}`);
+    logger.info(`Am I the contract admin?: '${state.isAdmin ? 'YES' : 'NO'}'`);
+    logger.info(`Enrolled voters: ${state.enrolledCount}${state.openEnrollment ? ' (open enrollment)' : ''}`);
+    logger.info(`Participants checked in: ${state.participantCount}${state.hasCheckedIn ? ' (including you)' : ''}`);
     logger.info(
       `Voting deadline: ${state.votingDeadline === 0n ? 'none' : new Date(Number(state.votingDeadline) * 1000).toISOString()}`,
     );
@@ -195,7 +197,9 @@ You can do one of the following:
   10. Register as a decryption trustee (before voting opens)
   11. Close voting, so trustees can submit shares
   12. Submit my decryption share (trustees only)
-  13. Exit
+  13. Enrol myself (polls with open enrollment)
+  14. Check in as a participant (opt-in, unconnected to any ballot)
+  15. Exit
 Which would you like to do? `;
 
 const mainLoop = async (providers: PrivatePollingProviders, rli: Interface, logger: Logger): Promise<void> => {
@@ -227,7 +231,12 @@ const mainLoop = async (providers: PrivatePollingProviders, rli: Interface, logg
               logger.error('Quorum must be a non-negative whole number.');
               break;
             }
-            await pollingApi.createPoll(question, deadline, quorum);
+            const open = await rli.question('Let anyone enrol themselves? (y/N): ');
+            await pollingApi.createPoll(question, {
+              deadline,
+              quorum,
+              openEnrollment: open.trim().toLowerCase().startsWith('y'),
+            });
             break;
           }
           case '2': {
@@ -283,6 +292,12 @@ const mainLoop = async (providers: PrivatePollingProviders, rli: Interface, logg
             await pollingApi.submitDecryptionShare();
             break;
           case '13':
+            await pollingApi.selfEnroll();
+            break;
+          case '14':
+            await pollingApi.checkIn();
+            break;
+          case '15':
             logger.info('Exiting...');
             return;
           default:
