@@ -1,3 +1,6 @@
+# The repo is a single npm workspace with one root lockfile, so npm updates are managed
+# from "/" only. Per-package entries pointed at lockfiles the build never used, which is
+# why their update PRs failed CI.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -6,9 +9,7 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 7
-    labels:
-      - 'dependencies'
-      - 'github-actions'
+    labels: ["dependencies", "github-actions"]
 
   - package-ecosystem: "npm"
     directory: "/"
@@ -17,131 +18,16 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'npm'
+    labels: ["dependencies", "npm"]
     versioning-strategy: auto
-
     groups:
       midnight:
-        patterns:
-          - "@midnight-ntwrk/*"
+        patterns: ["@midnight-ntwrk/*"]
       frontend-tooling:
-        patterns:
-          - "vite"
-          - "vite-*"
-          - "@vitejs/*"
-          - "esbuild"
-          - "vite-plugin-*"
+        patterns: ["vite", "vite-*", "@vitejs/*", "vite-plugin-*"]
       eslint-tooling:
-        patterns:
-          - "eslint"
-          - "eslint-*"
-          - "@typescript-eslint/*"
-          - "typescript-eslint"
+        patterns: ["eslint", "eslint-*", "@eslint/*", "@typescript-eslint/*", "typescript-eslint"]
       react-ecosystem:
-        patterns:
-          - "react"
-          - "react-dom"
-          - "@types/react"
-          - "@types/react-dom"
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom", "@mui/*", "@emotion/*"]
       testing:
-        patterns:
-          - "@types/*"
-          - "typescript"
-          - "vitest"
-          - "jest"
-          - "@testing-library/*"
-
-  - package-ecosystem: "npm"
-    directory: "/contract"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'npm'
-      - 'contract'
-    versioning-strategy: auto
-
-    groups:
-      midnight:
-        patterns:
-          - "@midnight-ntwrk/*"
-      eslint-tooling:
-        patterns:
-          - "eslint"
-          - "eslint-*"
-          - "@typescript-eslint/*"
-          - "typescript-eslint"
-      testing:
-        patterns:
-          - "@types/*"
-          - "typescript"
-          - "vitest"
-          - "jest"
-          - "@testing-library/*"
-
-  - package-ecosystem: "npm"
-    directory: "/private-polling-cli"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'npm'
-      - 'private-polling-cli'
-    versioning-strategy: auto
-
-    groups:
-      midnight:
-        patterns:
-          - "@midnight-ntwrk/*"
-      eslint-tooling:
-        patterns:
-          - "eslint"
-          - "eslint-*"
-          - "@typescript-eslint/*"
-          - "typescript-eslint"
-      testing:
-        patterns:
-          - "@types/*"
-          - "typescript"
-          - "vitest"
-          - "jest"
-          - "@testing-library/*"
-
-  - package-ecosystem: "npm"
-    directory: "/private-polling-ui"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'npm'
-      - 'private-polling-ui'
-    versioning-strategy: auto
-
-    groups:
-      midnight:
-        patterns:
-          - "@midnight-ntwrk/*"
-      eslint-tooling:
-        patterns:
-          - "eslint"
-          - "eslint-*"
-          - "@typescript-eslint/*"
-          - "typescript-eslint"
-      testing:
-        patterns:
-          - "@types/*"
-          - "typescript"
-          - "vitest"
-          - "jest"
-          - "@testing-library/*"
+        patterns: ["@types/*", "typescript", "vitest"]

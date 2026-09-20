@@ -5,71 +5,164 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch: {}
 
 permissions: {}
 
-# A push that supersedes an in-flight run makes that run's result irrelevant. Cancelling
-# it frees the runner and gets feedback on the new commit sooner. `main` is excluded from
-# cancellation so pushes to the default branch always produce a complete result.
+# A push that supersedes an in-flight run makes that run's result irrelevant. `main` is
+# excluded so every push to the default branch produces a complete result (and a badge).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+env:
+  COMPACT_VERSION: "0.31.0"
+  NODE_VERSION: "24"
+
 jobs:
-  install-and-test:
+  # Compiling the contract produces the TypeScript bindings, prover/verifier keys and ZKIR
+  # that every other package imports. It runs once and hands the output to the other jobs.
+  contract:
+    name: contract — compile, typecheck, lint, test
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  #v6.0.3
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Setup Compact Compiler
+      - name: Setup Compact compiler
         uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8
         with:
-          compact-version: '0.31.0'
+          compact-version: ${{ env.COMPACT_VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  #v6.4.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: "24"
-          # This workspace pulls a large Midnight SDK tree on every run; caching the npm
-          # store keeps `npm ci` from re-downloading all of it each time.
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
           cache-dependency-path: package-lock.json
 
-      # A bug in npm optional dependencies fails the build, which is fixed in npm 11 or later
-      # but the setup-node action isn't using a newer version of npm yet
-      # See https://github.com/npm/cli/issues/4828
-      - name: Update NPM
-        run: |
-          npm install -g npm@latest
-          npm --version
+      # npm < 11 mishandles optional dependencies in this tree (npm/cli#4828).
+      - name: Update npm
+        run: npm install -g npm@11
 
-      # We use --legacy-peer-deps because as of v3.4.1 vite-plugin-wasm doesn't play well with vite 7
-      # So this allows them to be installed regardless; They *have* implemented support, they just haven't published a release yet
-      # https://github.com/Menci/vite-plugin-wasm/pull/73
+      # --legacy-peer-deps: vite-plugin-wasm has not published its Vite 7+ peer range yet.
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Compile and test contract
+      - name: Compile contract
         working-directory: contract
-        run: |
-          npm run ci
+        run: compact compile src/private-polling.compact src/managed/private-polling
 
-      - name: api
-        working-directory: api
-        run: |
-          npm run ci
+      - name: Typecheck, lint, build, test
+        working-directory: contract
+        run: npm run ci
 
-      - name: Compile private-polling-cli
-        working-directory: private-polling-cli
-        run: |
-          npm run ci
+      - name: Upload compiled contract
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-contract
+          path: contract/src/managed
+          retention-days: 7
+          if-no-files-found: error
 
-      - name: Compile private-polling-ui
+  packages:
+    name: ${{ matrix.package }} — typecheck, lint, build, test
+    needs: contract
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [api, private-polling-cli, private-polling-ui]
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Update npm
+        run: npm install -g npm@11
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Download compiled contract
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-contract
+          path: contract/src/managed
+
+      - name: Build contract package
+        working-directory: contract
+        run: npm run build
+
+      - name: Typecheck, lint, build, test
+        working-directory: ${{ matrix.package }}
+        run: npm run ci
+
+      - name: Production build
+        if: matrix.package == 'private-polling-ui'
         working-directory: private-polling-ui
+        run: npm run build
+
+      # A deploy without circuit keys loads fine and then fails at the first vote.
+      - name: Check the build ships circuit keys
+        if: matrix.package == 'private-polling-ui'
         run: |
-          npm run ci
+          test -f private-polling-ui/dist/keys/castVote.prover
+          test -f private-polling-ui/dist/zkir/castVote.bzkir
+
+  # A full poll with real proofs and transactions against a throwaway local Midnight network
+  # (node + indexer + proof server via Docker). This catches what simulator tests cannot:
+  # disagreements between the compiled circuits and the JS runtime, which the proof server
+  # rejects. Runs on main and on demand; it takes several minutes.
+  e2e:
+    name: end-to-end poll on a local Midnight network
+    needs: contract
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Update npm
+        run: npm install -g npm@11
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Download compiled contract
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-contract
+          path: contract/src/managed
+
+      - name: Build contract package
+        working-directory: contract
+        run: npm run build
+
+      - name: Run end-to-end poll
+        working-directory: private-polling-cli
+        run: npm run e2e:standalone
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          path: private-polling-cli/logs
+          retention-days: 7
