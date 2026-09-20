@@ -1,5 +1,22 @@
 // Private Polling CLI — Direct Non-interactive Preprod Deployment
+//
+// Configuration comes from the environment (or private-polling-cli/.env, see .env.example):
+//
+//   MIDNIGHT_WALLET_SEED     required  hex seed of a funded Preprod wallet
+//   PRIVATE_STATE_PASSWORD   optional  encrypts the local LevelDB private state
+//   DEMO_POLL_QUESTION       optional  if set, also starts a public poll on the new contract:
+//                                      open enrollment, deployer as sole trustee, voting open
+//   DEMO_POLL_DAYS           optional  voting window for that poll (default 14)
+//   DUST_WAIT_MINUTES        optional  how long to wait for the dust wallet (default 15). A new
+//                                      wallet syncs the whole dust history first: hours on Preprod
+//
+// Outputs:
+//   deployments/<network>.json               public record — safe to commit
+//   private-polling-cli/.secrets/<addr>.json organizer secret key — NEVER commit; import it
+//                                            into the web UI to manage the poll from a browser
 
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import axios from 'axios';
 import { WebSocket } from 'ws';
 import { createLogger } from './logger-utils.js';
@@ -24,6 +41,9 @@ import { getNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import * as rx from 'rxjs';
 import { type FacadeState } from '@midnight-ntwrk/wallet-sdk-facade';
 import { UnshieldedAddress } from '@midnight-ntwrk/wallet-sdk-address-format';
+import { toHex } from '@midnight-ntwrk/midnight-js-utils';
+import { privatePollingPrivateStateKey } from '../../api/src/index.js';
+import { currentDir } from './config.js';
 
 // @ts-expect-error: WebSocket polyfill
 globalThis.WebSocket = WebSocket;
@@ -33,7 +53,29 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
-const SEED = '12e9aa9d5dd5f0e228e20369f471881806b17a5baeecdf766d5ef3eb84b16635';
+/**
+ * The wallet seed controls real (testnet) funds and the right to deploy under this
+ * identity, so it is never written into source. A seed committed to a public repository
+ * has to be treated as compromised.
+ */
+const readSeed = (): string => {
+  const seed = process.env.MIDNIGHT_WALLET_SEED?.trim().replace(/^0x/i, '');
+  if (!seed || !/^[0-9a-fA-F]{64}$/.test(seed)) {
+    throw new Error(
+      'MIDNIGHT_WALLET_SEED is not set (or is not 64 hex characters). ' +
+        'Copy private-polling-cli/.env.example to .env and fill it in.',
+    );
+  }
+  return seed;
+};
+
+const SEED = readSeed();
+const PRIVATE_STATE_PASSWORD = process.env.PRIVATE_STATE_PASSWORD ?? 'Polling-Local-Dev-Only!';
+const DEMO_POLL_QUESTION = process.env.DEMO_POLL_QUESTION?.trim();
+const DEMO_POLL_DAYS = Number(process.env.DEMO_POLL_DAYS ?? '14');
+const DUST_WAIT_MINUTES = Number(process.env.DUST_WAIT_MINUTES ?? '15');
+const CLI_ROOT = path.resolve(currentDir, '..');
+const REPO_ROOT = path.resolve(CLI_ROOT, '..');
 
 const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
   Promise.race([
@@ -135,7 +177,7 @@ async function main() {
 
     if (nightBalance === 0n) {
       throw new Error(
-        `Wallet has 0 NIGHT. Fund ${addr.toString()} at https://midnight-tmnight-preprod.nethermind.dev/ then re-run.`,
+        `Wallet has 0 NIGHT. Fund ${addr.toString()} at https://faucet.preprod.midnight.network/ then re-run.`,
       );
     }
 
@@ -209,13 +251,26 @@ async function main() {
     }
 
     // Wait for dust balance — log once every 10s
-    logger.info('[4/5] Waiting for dust balance (up to 5 min)...');
+    // A new CLI wallet replays the network's whole dust history before it can see (and
+    // spend) its own dust. On Preprod that is hours, so the limit is configurable and the
+    // log shows sync progress rather than a bare zero balance.
+    logger.info(`[4/5] Waiting for dust balance (up to ${DUST_WAIT_MINUTES} min)...`);
+    const syncStart = { at: Date.now(), index: -1n };
     await waitForCondition(
       walletProvider.wallet.state(),
       (s: FacadeState) => s.dust.balance(new Date()) > 0n,
-      (s: FacadeState) => logger.info(`[4/5] Still waiting for dust... current: ${s.dust.balance(new Date())}`),
-      10_000, // log every 10 seconds only
-      300_000, // 5 minute total timeout
+      (s: FacadeState) => {
+        const { appliedIndex, highestRelevantWalletIndex } = s.dust.progress;
+        if (syncStart.index < 0n) syncStart.index = appliedIndex;
+        const rate = Number(appliedIndex - syncStart.index) / ((Date.now() - syncStart.at) / 1000);
+        const remaining = Number(highestRelevantWalletIndex - appliedIndex);
+        const eta = rate > 0 && remaining > 0 ? `, ~${Math.ceil(remaining / rate / 60)} min left` : '';
+        logger.info(
+          `[4/5] Dust wallet sync ${appliedIndex}/${highestRelevantWalletIndex}${eta} — balance ${s.dust.balance(new Date())}`,
+        );
+      },
+      60_000,
+      DUST_WAIT_MINUTES * 60_000,
     );
     logger.info('[4/5] Dust balance confirmed!');
 
@@ -226,7 +281,7 @@ async function main() {
       privateStateProvider: levelPrivateStateProvider<PrivateStateId, PrivatePollingPrivateState>({
         privateStateStoreName: config.privateStateStoreName,
         signingKeyStoreName: `${config.privateStateStoreName}-signing-keys`,
-        privateStoragePasswordProvider: () => 'Polling-Test-2026!',
+        privateStoragePasswordProvider: () => PRIVATE_STATE_PASSWORD,
         accountId: SEED,
       }),
       publicDataProvider: indexerPublicDataProvider(envConfiguration.indexer, envConfiguration.indexerWS),
@@ -237,10 +292,65 @@ async function main() {
     };
 
     const api = await withTimeout(PrivatePollingAPI.deploy(providers, logger), 300_000, 'PrivatePollingAPI.deploy()');
+    const contractAddress = api.deployedContractAddress;
+    const networkId = getNetworkId();
+
+    // The deployer's secret key is the contract admin. Save it before anything else can
+    // fail: without it no further poll can ever be started on this contract.
+    const privateState = await providers.privateStateProvider.get(privatePollingPrivateStateKey);
+    if (privateState === null) throw new Error('Deployed, but the organizer private state was not persisted.');
+    const secretsDir = path.join(CLI_ROOT, '.secrets');
+    await mkdir(secretsDir, { recursive: true });
+    const secretFile = path.join(secretsDir, `${contractAddress}.json`);
+    await writeFile(
+      secretFile,
+      JSON.stringify(
+        {
+          format: 'ballotbox-key-backup/v1',
+          networkId,
+          contractAddress,
+          secretKey: toHex(privateState.secretKey),
+          warning: 'Organizer/admin key. Anyone holding it controls this contract. Never commit or share.',
+        },
+        null,
+        2,
+      ),
+      { mode: 0o600 },
+    );
+
+    const record: Record<string, unknown> = {
+      networkId,
+      contractAddress,
+      deployedAt: new Date().toISOString(),
+      deployTxHash: api.deployedContract.deployTxData.public.txHash,
+      deployBlockHeight: api.deployedContract.deployTxData.public.blockHeight,
+    };
+
+    if (DEMO_POLL_QUESTION) {
+      logger.info(`[5/5] Starting demo poll: "${DEMO_POLL_QUESTION}"`);
+      const deadline = new Date(Date.now() + DEMO_POLL_DAYS * 86_400_000);
+      const created = await api.createPoll(DEMO_POLL_QUESTION, { deadline, openEnrollment: true });
+      // The deployer acts as sole trustee so the demo can always be tallied. Documented as
+      // a demo trade-off: a binding vote should register independent trustees instead.
+      const trustee = await api.registerTrustee();
+      const opened = await api.openVoting();
+      record.demoPoll = {
+        question: DEMO_POLL_QUESTION,
+        votingDeadline: deadline.toISOString(),
+        openEnrollment: true,
+        txHashes: { createPoll: created.txHash, registerTrustee: trustee.txHash, openVoting: opened.txHash },
+      };
+    }
+
+    const deploymentsDir = path.join(REPO_ROOT, 'deployments');
+    await mkdir(deploymentsDir, { recursive: true });
+    await writeFile(path.join(deploymentsDir, `${networkId}.json`), JSON.stringify(record, null, 2) + '\n');
 
     console.log(`\n${'='.repeat(52)}`);
     console.log(`DEPLOYMENT SUCCESSFUL!`);
-    console.log(`Contract Address: ${api.deployedContractAddress}`);
+    console.log(`Contract Address: ${contractAddress}`);
+    console.log(`Public record:    deployments/${networkId}.json`);
+    console.log(`Organizer key:    ${path.relative(REPO_ROOT, secretFile)}  (keep private!)`);
     console.log(`${'='.repeat(52)}\n`);
   } catch (err) {
     console.error('\n[ERROR]', err instanceof Error ? err.message : err);
