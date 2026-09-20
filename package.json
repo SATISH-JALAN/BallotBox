@@ -1,18 +1,28 @@
 {
-  "name": "@midnight-ntwrk/private-polling",
+  "name": "ballotbox",
   "version": "0.1.0",
-  "author": "IOG",
-  "license": "MIT",
+  "author": "Satish Jalan",
+  "license": "Apache-2.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=22.0.0"
   },
   "scripts": {
-    "deploy": "npm run --workspace=@midnight-ntwrk/private-polling-cli preprod-remote",
-    "deploy-direct": "npm run --workspace=@midnight-ntwrk/private-polling-cli deploy-direct",
-    "build": "npm run --workspaces build",
-    "compact": "cd contract && compact compile src/private-polling.compact src/managed/private-polling"
+    "compact": "node scripts/compact.mjs",
+    "build": "npm run build -w @midnight-ntwrk/private-polling-contract && npm run build -w @midnight-ntwrk/private-polling-api && npm run build -w @midnight-ntwrk/private-polling-cli && npm run build -w @midnight-ntwrk/private-polling-ui",
+    "test": "npm run test -w @midnight-ntwrk/private-polling-contract -- --run && npm run test -w @midnight-ntwrk/private-polling-api && npm run test -w @midnight-ntwrk/private-polling-ui",
+    "lint": "npm run lint --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "ci": "npm run ci -w @midnight-ntwrk/private-polling-contract && npm run ci -w @midnight-ntwrk/private-polling-api && npm run ci -w @midnight-ntwrk/private-polling-cli && npm run ci -w @midnight-ntwrk/private-polling-ui",
+    "dev": "npm run dev -w @midnight-ntwrk/private-polling-ui",
+    "preview": "npm run build -w @midnight-ntwrk/private-polling-ui && npm run start -w @midnight-ntwrk/private-polling-ui",
+    "proof-server": "docker run --rm -p 6300:6300 midnightntwrk/proof-server:8.0.3 midnight-proof-server -v",
+    "cli": "npm run preprod-remote -w @midnight-ntwrk/private-polling-cli",
+    "deploy": "npm run deploy-direct -w @midnight-ntwrk/private-polling-cli",
+    "verify": "npm run verify -w @midnight-ntwrk/private-polling-cli --",
+    "export-participants": "npm run export-participants -w @midnight-ntwrk/private-polling-cli --",
+    "e2e": "npm run e2e:standalone -w @midnight-ntwrk/private-polling-cli"
   },
   "workspaces": {
     "packages": [
@@ -67,5 +77,11 @@
     "vite": "^8.0.14",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.6.0"
-  }
+  },
+  "description": "BallotBox — anonymous, verifiable polls on the Midnight network",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SATISH-JALAN/private-pooling.git"
+  },
+  "homepage": "https://github.com/SATISH-JALAN/private-pooling#readme"
 }
