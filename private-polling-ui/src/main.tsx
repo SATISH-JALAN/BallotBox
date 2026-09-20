@@ -48,8 +48,9 @@ logger.info(`contractAddress = ${contractAddress ?? '(not set — deploy contrac
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <CssBaseline />
     <ThemeProvider theme={theme}>
+      {/* Inside the provider, so the theme's baseline (page ground, scrollbars) applies. */}
+      <CssBaseline />
       <DeployedBoardProvider logger={logger}>
         <App />
       </DeployedBoardProvider>
