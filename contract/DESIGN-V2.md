@@ -3,11 +3,15 @@
 Design for the Level 4 rewrite of [`src/private-polling.compact`](./src/private-polling.compact),
 closing the three gaps recorded in [`../PRIVACY.md`](../PRIVACY.md).
 
-> **Status: design, not yet compiled.** The Compact snippets below have **not** been run
-> through `compact compile`. Treat them as the intended shape, not verified source. Names
-> in the standard library (Merkle helpers in particular) must be checked against the
-> pinned compiler version — `0.31.0`, per [`.github/workflows/ci.yaml`](../.github/workflows/ci.yaml).
-> The live contract is unchanged and still builds.
+> **Status: implemented and superseded (historical record).** Everything designed here
+> shipped, plus vote overriding and threshold decryption, in a different concrete form
+> (for example a `Map` keyed by nullifier instead of a `Set`, and ElGamal instead of an
+> encrypted vector). Contract v3 then added a deployment-time admin, open enrollment on a
+> `HistoricMerkleTree`, a hash-chained per-poll `pollId`, and participant check-in.
+>
+> For the current design see [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) and
+> [`../PRIVACY.md`](../PRIVACY.md). The source of truth is
+> [`src/private-polling.compact`](./src/private-polling.compact).
 
 ---
 
