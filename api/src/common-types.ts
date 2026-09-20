@@ -19,11 +19,42 @@ export type PrivatePollingCircuitKeys =
   | 'createPoll'
   | 'registerTrustee'
   | 'enrollVoter'
+  | 'selfEnroll'
+  | 'checkIn'
   | 'openVoting'
   | 'castVote'
   | 'closeVoting'
   | 'submitDecryptionShare'
   | 'publishTally';
+
+/** Every circuit that submits a transaction, in lifecycle order. */
+export const PRIVATE_POLLING_CIRCUITS: readonly PrivatePollingCircuitKeys[] = [
+  'createPoll',
+  'registerTrustee',
+  'enrollVoter',
+  'selfEnroll',
+  'openVoting',
+  'castVote',
+  'closeVoting',
+  'submitDecryptionShare',
+  'publishTally',
+  'checkIn',
+];
+
+/** Where a submitted transaction landed — enough to link to it in a block explorer. */
+export type TxReceipt = {
+  readonly txHash: string;
+  readonly blockHeight: number;
+};
+
+export type CreatePollOptions = {
+  /** When voting closes. Omit for no deadline. */
+  readonly deadline?: Date;
+  /** Minimum ballots for a binding result. 0 or omitted for none. */
+  readonly quorum?: number;
+  /** Let any wallet enrol itself. Defaults to organizer-only enrollment. */
+  readonly openEnrollment?: boolean;
+};
 
 export type PrivatePollingProviders = MidnightProviders<
   PrivatePollingCircuitKeys,
@@ -38,6 +69,14 @@ export type PrivatePollingDerivedState = {
   readonly pollQuestion: string | undefined;
   readonly sequence: bigint;
   readonly isOwner: boolean;
+  /** Whether this wallet deployed the contract, and so may start new polls on it. */
+  readonly isAdmin: boolean;
+  /** Whether any wallet may enrol itself in the current poll. */
+  readonly openEnrollment: boolean;
+  /** Distinct wallets that have checked in on this contract, across every poll. */
+  readonly participantCount: bigint;
+  /** Whether the connected wallet is in the participant set. */
+  readonly hasCheckedIn: boolean;
   /** Ballots cast so far. Public by design — turnout is a legitimate public fact. */
   readonly ballotCount: bigint;
   /** Whether the organizer has decrypted and published the result. */
