@@ -22,7 +22,8 @@
     "deploy": "npm run deploy-direct -w @midnight-ntwrk/private-polling-cli",
     "verify": "npm run verify -w @midnight-ntwrk/private-polling-cli --",
     "export-participants": "npm run export-participants -w @midnight-ntwrk/private-polling-cli --",
-    "e2e": "npm run e2e:standalone -w @midnight-ntwrk/private-polling-cli"
+    "e2e": "npm run e2e:standalone -w @midnight-ntwrk/private-polling-cli",
+    "sync-users": "node scripts/sync-users.mjs"
   },
   "workspaces": {
     "packages": [
