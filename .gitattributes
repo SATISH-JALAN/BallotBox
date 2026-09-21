@@ -1,0 +1,2 @@
+# Shell scripts run on Linux (Vercel, CI, WSL): a CRLF checkout breaks them.
+*.sh text eol=lf

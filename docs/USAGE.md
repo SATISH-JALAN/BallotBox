@@ -1,7 +1,8 @@
 # How to Use BallotBox
 
-Plain-English instructions for someone who has never used a blockchain. The full
-walkthrough, with screenshots of every stage, is the [user guide](./USER_GUIDE.md).
+Plain-English instructions for someone who has never used a blockchain. The longer
+walkthrough, including running your own poll and acting as a trustee, is the
+[user guide](./USER_GUIDE.md).
 
 - [What You Need](#what-you-need)
 - [Getting Started on Preprod](#getting-started-on-preprod)

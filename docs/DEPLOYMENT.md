@@ -51,10 +51,35 @@ and choose the `.secrets/<address>.json` file.
 
 ## 2. Host the web app on Vercel
 
-Deployment runs from [`.github/workflows/deploy.yaml`](../.github/workflows/deploy.yaml):
-PRs get preview URLs and `main` goes to production.
+### Recommended: Vercel's Git integration
 
-### One-time setup
+Vercel builds the app itself. The root [`vercel.json`](../vercel.json) runs
+[`scripts/vercel-build.sh`](../scripts/vercel-build.sh), which installs the Compact
+compiler, compiles the contract (about a minute), and builds the web app into
+`private-polling-ui/dist`.
+
+1. In Vercel, **Add New → Project** and import the GitHub repository.
+2. Leave **Root Directory** as the repository root and **Framework Preset** as *Other*.
+   `vercel.json` sets the install command, build command, output directory and headers;
+   don't override them in the dashboard.
+3. Deploy. Every push to `main` then redeploys, and PRs get preview URLs.
+
+The contract address comes from `private-polling-ui/.env.preprod`, which is committed. To
+point at a different contract, change it there or set `VITE_CONTRACT_ADDRESS` in the Vercel
+project's environment variables.
+
+> **Why compiling on Vercel is safe.** The hosted app's proofs must verify against the keys
+> the live contract was deployed with. Compact key generation is deterministic: keys built
+> on Vercel's image, in CI and locally are byte-identical. If you ever change the contract,
+> redeploy it — new keys will not verify against the old contract.
+
+### Alternative: deploy from GitHub Actions
+
+[`.github/workflows/deploy.yaml`](../.github/workflows/deploy.yaml) can build in CI and
+upload the prebuilt output instead. It stays idle until the secrets below exist. **Use one
+path or the other, not both**, or every push deploys twice.
+
+#### One-time setup
 
 1. **Create the project.** Install the CLI (`npm i -g vercel`), then:
    ```bash
@@ -78,8 +103,8 @@ PRs get preview URLs and `main` goes to production.
 5. Push to `main`, or run the workflow manually from the Actions tab. The deployment URL
    appears in the job summary.
 
-Vercel's own Git builds are disabled in `private-polling-ui/vercel.json`. Vercel can't
-compile Compact contracts, so every deployment goes through CI.
+If you take this path, disconnect the repository from Vercel's Git integration
+(Project → Settings → Git) so pushes are not deployed twice.
 
 ### Deploy by hand (fallback)
 

@@ -1,8 +1,8 @@
 // Packages dist/ as a Vercel Build Output API v3 directory (.vercel/output), so CI can
 // deploy with `vercel deploy --prebuilt` without Vercel re-running the build.
 //
-// Vercel cannot build this app itself: the build needs the Compact compiler to produce the
-// circuit keys. Routing and headers therefore live here rather than in vercel.json.
+// This is the alternative to Vercel's Git integration, which builds with the root
+// vercel.json and scripts/vercel-build.sh. Keep the headers here in step with that file.
 
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
