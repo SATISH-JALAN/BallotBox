@@ -1,7 +1,7 @@
 # Feedback loop
 
 How BallotBox gathers feedback from Preprod testers, decides what to change, and closes
-the loop. This document is the process. The [feedback log](#feedback-log) and
+the loop. This document is the process. The [raw feedback log](#raw-feedback-log) and
 [iteration history](#iteration-history) below record what actually happened.
 
 ```mermaid
@@ -16,7 +16,9 @@ flowchart LR
 
 ---
 
-## 1. Collect
+## Feedback Collection Method
+
+*(Step 1 of the loop: collect.)*
 
 | Channel | What it captures | Where it lands |
 |---|---|---|
@@ -84,7 +86,7 @@ issue, updated docs in the same PR, and a `CHANGELOG.md` entry.
 
 ---
 
-## Feedback log
+## Raw Feedback Log
 
 Add one row per distinct piece of feedback. Link the source, and never paste wallet seeds
 or key files.
@@ -92,6 +94,30 @@ or key files.
 | # | Date | Source | Area | Type | Summary | Theme / issue | Status |
 |---|---|---|---|---|---|---|---|
 | 1 | YYYY-MM-DD | form | onboarding | blocker | *example: “didn't know I needed DUST”* | #— | open |
+
+## What We Heard (Themes)
+
+Filled in as the log grows: one row per theme, not per report, so a single loud voice does
+not outrank a pattern. Reach is the number of distinct testers who hit it.
+
+| Theme | Reach | Where it bites | Evidence (log #) |
+|---|---|---|---|
+| | | | |
+
+## What We Changed
+
+Every row must name the commit that did it, so a reviewer can follow feedback all the way
+to the diff. Iteration 0 below is the pre-launch pass; later rows come from real testers.
+
+| Change | Reason (feedback) | Commit |
+|---|---|---|
+| | | |
+
+## Level 6 Improvements
+
+| Change | User Feedback That Triggered It | Status |
+|---|---|---|
+| | | |
 
 ## Iteration history
 
