@@ -98,3 +98,71 @@ Tag `@MidnightNtwrk`; use `#Midnight #ZK #BuildInPublic`.
 5. Join the poll, then vote. Point out the timer: “this is the zero-knowledge proof”.
 6. Count me as a tester, then Feedback form (1 min).
 7. Ask: *“What almost made you give up?”* and log it in [FEEDBACK.md](./FEEDBACK.md).
+
+## 6. Brand brief
+
+**Tagline**
+> Vote privately. Verify publicly.
+
+**Three key messages**
+
+1. **Your ballot is unreadable — to everyone.** Not "encrypted at rest" or "only staff can
+   see it". The organizer holds no key that opens a single ballot, because no such key
+   exists: decryption needs every trustee, and it opens only the total.
+2. **Secrecy without taking the count on trust.** Anyone can re-derive the published result
+   from public chain data (`npm run verify`) and confirm it matches the encrypted ballots.
+   Most private voting tools ask you to believe the number.
+3. **Coercion loses its grip.** You can re-vote until voting closes, and only your last
+   ballot counts — so what someone watched you do proves nothing.
+
+**Palette** — the app's own tokens, so the profile and product match. Deliberately not the
+purple-on-black that every crypto product ships.
+
+| Role | Hex | Use |
+|---|---|---|
+| Paper | `#f2efe8` | page ground, banner background |
+| Ink | `#1d1c18` | headings, primary buttons, wordmark |
+| Rule | `#dcd6c8` | hairlines, dividers |
+| Affirm | `#2f6b4b` | yes, verified, success |
+| Against | `#a33f2c` | no, errors |
+| Caution | `#8a6012` | network label, warnings |
+
+**X bio** (under 160 characters)
+> Anonymous, verifiable polls on @MidnightNtwrk. Your ballot is encrypted; the result is
+> checked on-chain. Live on Preprod — try a vote.
+
+**Banner concept**
+> A paper ballot slip on a plain `#f2efe8` ground, photographed square-on. The left half
+> shows a filled-in checkbox; the right half shows the same slip with the mark replaced by
+> a short hash in mono type, ink on paper. One line of text between them: *"the chain sees
+> the right-hand side."* No glow, no gradient, no 3D crypto imagery.
+
+## 7. Three standalone posts (Level 4)
+
+Use these if a thread is too much — one per day works well.
+
+**Post 1 — what it is, and why Midnight**
+> Online votes make you choose: trust a server with your ballot, or publish it on a chain
+> forever.
+>
+> BallotBox does neither. Ballots are encrypted in your browser; eligibility is proven in
+> zero knowledge on @MidnightNtwrk.
+>
+> Live on Preprod 👇 <vercel url>
+
+**Post 2 — the technical insight**
+> How do you count votes you can't read?
+>
+> Each ballot is an exponential ElGamal ciphertext on Jubjub. Adding ciphertexts adds the
+> votes underneath. The chain holds a running total nobody can open until every trustee
+> submits a share — and `publishTally` re-encrypts the claimed counts in-circuit and
+> rejects them if they don't match. #ZK
+
+**Post 3 — call to try it**
+> Looking for testers 🗳️
+>
+> 5 minutes, free test tokens, no real money. Vote in a poll where nobody — including me —
+> can read your ballot, then check the result yourself with one command.
+>
+> <vercel url>
+> Guide: <user guide link>

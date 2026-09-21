@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/SATISH-JALAN/private-pooling/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/SATISH-JALAN/private-pooling/actions/workflows/ci.yaml)
 [![Deploy](https://github.com/SATISH-JALAN/private-pooling/actions/workflows/deploy.yaml/badge.svg?branch=main)](https://github.com/SATISH-JALAN/private-pooling/actions/workflows/deploy.yaml)
-[![Network: Preprod](https://img.shields.io/badge/Midnight-Preprod-7e57c2)](#live-on-preprod)
+[![Network: Preprod](https://img.shields.io/badge/Midnight-Preprod-2f6b4b)](#live-on-preprod)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 
 **BallotBox** runs anonymous polls on the Midnight blockchain. Your ballot is encrypted
@@ -27,23 +27,29 @@ ballots, so nobody has to trust the organizer.
 
 ## Contents
 
-- [Why BallotBox](#why-ballotbox)
+- [What This Product Does](#what-this-product-does)
 - [Features](#features)
 - [How a poll works](#how-a-poll-works)
-- [Privacy at a glance](#privacy-at-a-glance)
+- [Contract Address](#contract-address)
+- [Live Demo](#live-demo)
+- [Privacy Model](#privacy-model)
 - [Live on Preprod](#live-on-preprod)
-- [Quickstart — run it locally](#quickstart--run-it-locally)
+- [Prerequisites](#prerequisites) · [Setup & Run Locally](#setup--run-locally)
 - [Usage](#usage)
+- [Tech Stack](#tech-stack) · [Run Tests](#run-tests)
 - [Project structure](#project-structure)
-- [Testing & CI/CD](#testing--cicd)
+- [CI/CD](#cicd)
 - [Performance](#performance)
 - [Roadmap](#roadmap)
 - [Troubleshooting](#troubleshooting)
+- [Product Proposal](#product-proposal) · [Usage Guide](#usage-guide) · [Feedback & Iterations](#feedback--iterations)
+- [Level 5 — User Validation](#level-5--user-validation) · [Level 6 Users](#level-6-users)
+- [Product X Profile](#product-x-profile) · [Brand Assets](#brand-assets)
 - [Contributing, security, license](#contributing-security-license)
 
 ---
 
-## Why BallotBox
+## What This Product Does
 
 Online voting usually forces a bad choice:
 
@@ -95,7 +101,31 @@ flowchart LR
 6. **Publish.** Anyone recovers the counts from public data and submits them. The contract
    re-encrypts them and rejects anything that doesn't match the ballots.
 
-## Privacy at a glance
+## Contract Address
+
+| Network | Address |
+|---------|---------|
+| Preprod | `7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351` |
+
+Deploy transaction and block: [`deployments/preprod.json`](./deployments/preprod.json).
+Check it yourself, with no wallet: `npm run verify -- 7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351`.
+
+## Live Demo
+
+<https://REPLACE-WITH-VERCEL-URL> — the featured poll runs on the contract above.
+
+## Privacy Model
+
+- **PUBLIC** (on-chain, anyone can see): the question, stage, deadline and quorum; the roll
+  of anonymous voter commitments; the encrypted running tally; how many enrolled and how
+  many voted; one unlinkable nullifier per ballot; the final counts once published; and the
+  wallets that opted in to the tester list.
+- **PRIVATE** (private witness, never on-chain): your secret key, your vote choice, and
+  which entry on the voter roll is yours.
+- **PROVED without revealing:** that you are on the roll (without saying which voter you
+  are), that you have not already voted (without linking your ballots), that your ballot is
+  a valid choice (without disclosing it), and that the published counts are exactly the
+  decryption of the accumulated ballots (without opening any single ballot).
 
 | Data | Visibility |
 |---|---|
@@ -133,9 +163,7 @@ npm run export-participants -- <contract-address>  # lists checked-in tester wal
 
 ---
 
-## Quickstart — run it locally
-
-### Prerequisites
+## Prerequisites
 
 | Tool | Version | Notes |
 |---|---|---|
@@ -153,6 +181,8 @@ compact update 0.31.0
 
 On Windows you only need WSL with an Ubuntu distro, plus `unzip` inside it (`wsl -d Ubuntu -- apt-get install -y unzip`).
 `npm run compact` installs the compiler inside WSL the first time.
+
+## Setup & Run Locally
 
 ### 1 · Install, compile, test
 
@@ -218,6 +248,26 @@ trustee, vote, close, share, publish, check-in). See [`private-polling-cli/READM
 
 ---
 
+## Tech Stack
+
+| Layer | What it uses |
+|---|---|
+| Contract | **Compact 0.23**, compiler **0.31.0**, `compact-runtime` 0.16, ledger-v8 |
+| Proving | Midnight **proof-server 8.0.3** (Docker), circuit keys shipped with the app |
+| Chain access | `midnight-js` 4.1.1 — indexer, node RPC, HTTP proof client |
+| Web app | React 19, TypeScript, Vite 8, MUI, RxJS |
+| Wallet | Midnight DApp connector API (Lace or 1AM) |
+| CLI & tests | Node 24, vitest, testcontainers (node 0.22.3, indexer 4.0.1) |
+| CI/CD | GitHub Actions → Vercel (prebuilt output) |
+
+## Run Tests
+
+```bash
+npm test                  # contract (47) + api (5) + ui (13)
+npm run e2e               # 26-step end-to-end poll on a local Midnight network (Docker)
+npm run verify -- <addr>  # recheck a published tally from public chain data alone
+```
+
 ## Project structure
 
 ```
@@ -235,7 +285,25 @@ private-pooling/
 
 Architecture, data flow and design decisions: **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)**.
 
-## Testing & CI/CD
+<details>
+<summary>Where the challenge's suggested single-package layout lives here</summary>
+
+This is an npm workspaces monorepo, because the contract, the shared API, the web app and
+the CLI are built and published separately. The mapping:
+
+| Suggested | Here |
+|---|---|
+| `contracts/*.compact` | [`contract/src/private-polling.compact`](./contract/src/private-polling.compact) |
+| `managed/` | `contract/src/managed/private-polling/` (generated by `npm run compact`) |
+| `src/components`, `src/hooks` | [`private-polling-ui/src/components`](./private-polling-ui/src/components), [`/hooks`](./private-polling-ui/src/hooks) |
+| `src/utils/contract.ts` | [`api/src/index.ts`](./api/src/index.ts) — shared by the web app and the CLI |
+| `tests/` | `contract/src/test/`, `api/src/test/`, `private-polling-ui/src/**/*.test.ts`, `private-polling-cli/src/e2e-standalone.ts` |
+| `.github/workflows/ci.yml` | [`.github/workflows/ci.yaml`](./.github/workflows/ci.yaml) |
+| `docs/USAGE.md` | [`docs/USAGE.md`](./docs/USAGE.md) |
+
+</details>
+
+## CI/CD
 
 | Suite | Tests | Covers |
 |---|---:|---|
@@ -294,6 +362,53 @@ depth 10).
 | Out of memory while deploying | `deploy-direct` already sets `--max-old-space-size=8192`; close other heavy apps |
 
 More help: [SUPPORT.md](./SUPPORT.md) · [User guide FAQ](./docs/USER_GUIDE.md#faq).
+
+## Product Proposal
+
+What the product is, who uses it, why Midnight rather than a transparent chain, the data
+model, and whether Mainnet is realistic: [PROPOSAL.md](./PROPOSAL.md).
+
+## Usage Guide
+
+[docs/USAGE.md](./docs/USAGE.md) — plain-English steps, including *Getting Started on
+Preprod* and *Your First Transaction*. The longer walkthrough is the
+[user guide](./docs/USER_GUIDE.md).
+
+## Feedback & Iterations
+
+Process, raw log and what changed because of it: [docs/FEEDBACK.md](./docs/FEEDBACK.md).
+
+Top changes made before inviting testers (iteration 0):
+
+- **Keys now survive a reload.** A page refresh used to mint a new secret key, which lost a
+  voter's eligibility and could seal a poll permanently. Keys persist per poll, with backup
+  and restore.
+- **Anyone can join a public poll.** Voters had to hand their commitment to the organizer,
+  which does not scale past a handful of testers. Open enrollment adds one-click joining.
+- **Errors say what to do.** "Application is not authorized" became instructions about
+  unlocking the wallet, switching to Preprod, or starting the proof server.
+
+## Level 5 — User Validation
+
+- Target: **50** Preprod users · Current: **0** — see [USERS.md](./USERS.md)
+- Wallets come from the contract's participant set, exported from chain state:
+  `npm run export-participants -- <address> && npm run sync-users`
+- Feedback log and iterations: [docs/FEEDBACK.md](./docs/FEEDBACK.md)
+
+## Level 6 Users
+
+- Target: **70** Preprod users · Current: **0** — see [LAUNCH_USERS.md](./LAUNCH_USERS.md)
+- Same export, same verification: the list is transcribed from the chain, not typed by hand.
+
+## Product X Profile
+
+**[@REPLACE_WITH_HANDLE](https://x.com/REPLACE_WITH_HANDLE)** — launch posts, brand brief
+and recruitment messages are in the [launch kit](./docs/LAUNCH_KIT.md).
+
+## Brand Assets
+
+Palette, tagline, bio and banner concept: [launch kit § brand brief](./docs/LAUNCH_KIT.md#6-brand-brief).
+Logo and banner images: _to be added_.
 
 ## Contributing, security, license
 

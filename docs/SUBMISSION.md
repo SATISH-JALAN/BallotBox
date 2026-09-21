@@ -16,8 +16,27 @@ Where each requirement is met in this repository, and what still has to be done 
 | Demo video of the MVP | Script below | 🧑 record |
 | ≥ 15 meaningful commits | 28 already, plus the split suggested below | ✅ |
 
-**Before submitting L4, search for and replace** `REPLACE-WITH-VERCEL-URL`,
-`REPLACE-WITH-CONTRACT-ADDRESS` and `REPLACE_WITH_HANDLE` in `README.md` and `docs/USER_GUIDE.md`.
+**Before submitting L4, search for and replace** `REPLACE-WITH-VERCEL-URL` and
+`REPLACE_WITH_HANDLE` in `README.md` and `docs/USER_GUIDE.md`. (The contract address is
+already filled in.)
+
+### Files the challenge prompts ask for by name
+
+| File | Purpose | State |
+|---|---|---|
+| [`PROPOSAL.md`](../PROPOSAL.md) | product, why Midnight, data model, mainnet feasibility | ✅ drafted — review the wording |
+| [`docs/USAGE.md`](./USAGE.md) | plain-English usage, first transaction, troubleshooting | ✅ |
+| [`docs/FEEDBACK.md`](./FEEDBACK.md) | collection method, raw log, themes, what changed, L6 improvements | ✅ process · 🧑 fill as testers arrive |
+| [`USERS.md`](../USERS.md) | 50 Preprod wallets (L5) | ✅ generated · 🧑 needs real testers |
+| [`LAUNCH_USERS.md`](../LAUNCH_USERS.md) | 70 Preprod wallets (L6) | ✅ generated · 🧑 needs real testers |
+| [`docs/LAUNCH_KIT.md`](./LAUNCH_KIT.md) | launch posts, recruitment, onboarding script, brand brief | ✅ |
+
+`USERS.md` and `LAUNCH_USERS.md` are never edited by hand:
+
+```bash
+npm run export-participants -- <address>   # read the participant set from chain state
+npm run sync-users                         # rewrite both tables from that export
+```
 
 ### Demo video script (3–4 min)
 1. **Problem (15 s):** private *or* verifiable — why not both.
