@@ -12,12 +12,16 @@ ballots, so nobody has to trust the organizer.
 
 | | |
 |---|---|
-| 🌐 **Live app** | **<https://REPLACE-WITH-VERCEL-URL>** |
+| 🌐 **Live app** | **<https://private-pooling.vercel.app>** |
 | 📜 **Preprod contract** | `7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351` ([deployment record](./deployments/preprod.json)) |
 | 𝕏 **Product profile** | **[@REPLACE_WITH_HANDLE](https://x.com/REPLACE_WITH_HANDLE)** |
 | 🎬 **Demo video** | [Watch the walkthrough](https://drive.google.com/drive/folders/17Wp-457jbYBe5BfflG4Z4f4I7z0sTcat?usp=sharing) |
 | 💬 **Give feedback** | [Feedback form](https://github.com/SATISH-JALAN/private-pooling/issues/new?template=user-feedback.yml) · [how feedback is used](./docs/FEEDBACK.md) |
 | 📖 **Docs** | [User guide](./docs/USER_GUIDE.md) · [Architecture](./docs/ARCHITECTURE.md) · [Privacy model](./PRIVACY.md) · [Deployment](./docs/DEPLOYMENT.md) · [Integration](./api/INTEGRATION.md) |
+
+<p align="center">
+  <a href="https://private-pooling.vercel.app"><img src="./docs/screenshots/landing-desktop.png" alt="BallotBox landing page: the featured Preprod poll with its live turnout, and the five-minute setup checklist" width="820"></a>
+</p>
 
 > **Try it in five minutes:** open the live app, follow *“New here?”*, press **Join this
 > poll**, vote, then **Count me as a tester**. The [user guide](./docs/USER_GUIDE.md)
@@ -112,7 +116,7 @@ Check it yourself, with no wallet: `npm run verify -- 7423df36535c53ec590fd268f3
 
 ## Live Demo
 
-<https://REPLACE-WITH-VERCEL-URL> — the featured poll runs on the contract above.
+<https://private-pooling.vercel.app> — the featured poll runs on the contract above.
 
 ## Privacy Model
 
@@ -150,7 +154,7 @@ Check it yourself, with no wallet: `npm run verify -- 7423df36535c53ec590fd268f3
 | Network | Midnight **Preprod** |
 | Contract address | `7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351` |
 | Deploy transaction | see [`deployments/preprod.json`](./deployments/preprod.json) |
-| Web app | <https://REPLACE-WITH-VERCEL-URL> |
+| Web app | <https://private-pooling.vercel.app> |
 | Contract source | [`contract/src/private-polling.compact`](./contract/src/private-polling.compact) (Compact 0.23 / compiler 0.31.0) |
 | Tester list | [`deployments/participants-preprod.json`](./deployments/participants-preprod.json) (regenerate with `npm run export-participants -- <address>`) |
 

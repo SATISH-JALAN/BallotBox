@@ -4,5 +4,7 @@
   "deployedAt": "2026-09-15T22:11:12.000Z",
   "deployTxHash": "4ef7ca023b29e6d5df2899ebaa964610435db909a68af228a27e5025311c1ee1",
   "deployBlockHeight": 2566269,
-  "deployedWith": "BallotBox web app + 1AM wallet"
+  "deployedWith": "BallotBox web app + 1AM wallet",
+  "webApp": "https://private-pooling.vercel.app",
+  "inviteLink": "https://private-pooling.vercel.app/?poll=7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351"
 }

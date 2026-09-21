@@ -10,10 +10,10 @@ Preprod testers (Levels 5–6). Replace every `<…>` before posting.
 | Name | **BallotBox** |
 | Handle | `@BallotBoxVote` (alternatives: `@BallotBoxZK`, `@ballotbox_mn`) |
 | Bio (≤160) | `Private, verifiable polls on @MidnightNtwrk. Your ballot is encrypted, your eligibility is proven in zero knowledge, the result is checked on-chain. Live on Preprod 👇` |
-| Website | `<vercel url>` |
+| Website | `https://private-pooling.vercel.app` |
 | Location | `Midnight Preprod` |
-| Avatar | `private-polling-ui/public/icon.png`, or a ballot-box glyph on purple `#7e57c2` |
-| Header | `docs/screenshots/` landing page screenshot |
+| Avatar | `private-polling-ui/public/icon.png`, or a ballot-box glyph in ink `#1d1c18` on paper `#f2efe8` |
+| Header | [`docs/screenshots/landing-desktop.png`](./screenshots/landing-desktop.png), cropped to 1500×500 |
 | Pinned post | Launch thread (below) |
 
 After you create it:
@@ -30,7 +30,7 @@ After you create it:
 > We built a third option on @MidnightNtwrk.
 >
 > Meet BallotBox 🗳️ private, verifiable polls, live on Preprod.
-> <vercel url>
+> https://private-pooling.vercel.app
 
 **2/**
 > 🔒 Your ballot is encrypted before it leaves your browser. Nobody reads it — not other
@@ -50,14 +50,14 @@ After you create it:
 > 3. Open the featured poll → Join → Vote
 > 4. Tap "Count me as a tester"
 >
-> Guide: <user guide link>
+> Guide: https://github.com/SATISH-JALAN/private-pooling/blob/main/docs/USAGE.md
 
 **5/**
 > Building in public: code, contract, tests and CI are all open.
-> <github link>
+> https://github.com/SATISH-JALAN/private-pooling
 >
 > Tell us what broke. Every piece of feedback gets read, and we post what we change because of it. 👇
-> <feedback link>
+> https://github.com/SATISH-JALAN/private-pooling/issues/new?template=user-feedback.yml
 
 ## 3. Building-in-public cadence
 
@@ -77,11 +77,11 @@ Tag `@MidnightNtwrk`; use `#Midnight #ZK #BuildInPublic`.
 > Hey! I'm testing BallotBox, anonymous voting on Midnight Preprod. It takes about 5 minutes,
 > needs no real money, and your vote stays secret (it's encrypted and proven in ZK).
 > Would you try one vote and tell me where you got stuck?
-> 👉 <invite link> · guide: <user guide link>
+> 👉 https://private-pooling.vercel.app/?poll=7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351 · guide: https://github.com/SATISH-JALAN/private-pooling/blob/main/docs/USAGE.md
 
 **Direct message**
 > Could you do me a 5-minute favour? I built a private voting dApp on Midnight's test
-> network and need real people to try it. Open <invite link>, follow “New here?”, vote,
+> network and need real people to try it. Open https://private-pooling.vercel.app/?poll=7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351, follow “New here?”, vote,
 > tap “Count me as a tester”, then hit Feedback. Happy to help on a call if the wallet
 > setup is confusing.
 
@@ -148,7 +148,7 @@ Use these if a thread is too much — one per day works well.
 > BallotBox does neither. Ballots are encrypted in your browser; eligibility is proven in
 > zero knowledge on @MidnightNtwrk.
 >
-> Live on Preprod 👇 <vercel url>
+> Live on Preprod 👇 https://private-pooling.vercel.app
 
 **Post 2 — the technical insight**
 > How do you count votes you can't read?
@@ -164,5 +164,5 @@ Use these if a thread is too much — one per day works well.
 > 5 minutes, free test tokens, no real money. Vote in a poll where nobody — including me —
 > can read your ballot, then check the result yourself with one command.
 >
-> <vercel url>
-> Guide: <user guide link>
+> https://private-pooling.vercel.app
+> Guide: https://github.com/SATISH-JALAN/private-pooling/blob/main/docs/USAGE.md

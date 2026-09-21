@@ -9,16 +9,15 @@ Where each requirement is met in this repository, and what still has to be done 
 |---|---|---|
 | Privacy-critical core first | Contract v3 ([source](../contract/src/private-polling.compact)), 47 contract tests, [PRIVACY.md](../PRIVACY.md) | ✅ |
 | Working MVP on Preprod (verifiable address) | `npm run deploy` → [`deployments/preprod.json`](../deployments/) + README *Live on Preprod* | 🧑 deploy with a funded wallet |
-| Live demo link | Vercel Git integration, built by [`vercel.json`](../vercel.json) | 🧑 import the repo in Vercel ([guide](./DEPLOYMENT.md#2-host-the-web-app-on-vercel)) |
+| Live demo link | Vercel Git integration, built by [`vercel.json`](../vercel.json) | ✅ <https://private-pooling.vercel.app> |
 | Documentation: README + setup + usage | [README](../README.md), [User guide](./USER_GUIDE.md), [Architecture](./ARCHITECTURE.md), [Deployment](./DEPLOYMENT.md), [Integration](../api/INTEGRATION.md) | ✅ |
 | CI/CD pipeline with passing runs | [`ci.yaml`](../.github/workflows/ci.yaml) + [`deploy.yaml`](../.github/workflows/deploy.yaml), badges in README | ✅ after push · 🧑 confirm green run |
 | Product X profile linked in README | [Launch kit](./LAUNCH_KIT.md) | 🧑 create profile, replace `@REPLACE_WITH_HANDLE` |
 | Demo video of the MVP | Script below | 🧑 record |
 | ≥ 15 meaningful commits | 28 already, plus the split suggested below | ✅ |
 
-**Before submitting L4, search for and replace** `REPLACE-WITH-VERCEL-URL` and
-`REPLACE_WITH_HANDLE` in `README.md` and `docs/USER_GUIDE.md`. (The contract address is
-already filled in.)
+**Before submitting L4, search for and replace** `REPLACE_WITH_HANDLE` in `README.md`.
+The contract address and the live app (<https://private-pooling.vercel.app>) are already filled in.
 
 ### Files the challenge prompts ask for by name
 

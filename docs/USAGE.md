@@ -45,6 +45,11 @@ You are ready when the wallet shows **Preprod**, **synced**, and a DUST balance 
 
 ## Your First Transaction
 
+<img src="./screenshots/landing-mobile.png" alt="BallotBox on a phone: the featured poll with its question, turnout and a Connect wallet button" width="260" align="right">
+
+The app is at **<https://private-pooling.vercel.app>**. On the home page, the featured poll
+card shows the question, the stage and the turnout before you connect anything.
+
 1. Open the poll link you were given, or the featured poll on the home page. You can read
    the question and see the turnout **before** connecting anything.
 2. Press **Connect wallet & take part** and approve the connection.
