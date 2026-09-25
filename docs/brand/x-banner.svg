@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500" role="img" aria-labelledby="t">
+  <title id="t">BallotBox — Vote privately. Verify publicly.</title>
+  <rect width="1500" height="500" fill="#f2efe8"/>
+  <!-- keep the lower-left clear: X overlays the avatar there -->
+  <g font-family="ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace">
+    <!-- left slip: what the voter sees -->
+    <g transform="translate(470 90)">
+      <rect width="250" height="290" rx="6" fill="#fffdf8" stroke="#1d1c18" stroke-width="5"/>
+      <text x="28" y="52" font-size="22" font-weight="700" fill="#1d1c18">BALLOT</text>
+      <line x1="28" y1="70" x2="222" y2="70" stroke="#dcd6c8" stroke-width="3"/>
+      <rect x="28" y="100" width="34" height="34" rx="3" fill="none" stroke="#1d1c18" stroke-width="4"/>
+      <path d="M34 117 l9 10 l22 -28" fill="none" stroke="#2f6b4b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="80" y="126" font-size="22" fill="#1d1c18">Yes</text>
+      <rect x="28" y="160" width="34" height="34" rx="3" fill="none" stroke="#1d1c18" stroke-width="4"/>
+      <text x="80" y="186" font-size="22" fill="#1d1c18">No</text>
+      <line x1="28" y1="236" x2="170" y2="236" stroke="#dcd6c8" stroke-width="3"/>
+      <line x1="28" y1="256" x2="130" y2="256" stroke="#dcd6c8" stroke-width="3"/>
+    </g>
+    <!-- right slip: what the chain sees -->
+    <g transform="translate(1010 90)">
+      <rect width="250" height="290" rx="6" fill="#fffdf8" stroke="#1d1c18" stroke-width="5"/>
+      <text x="28" y="52" font-size="22" font-weight="700" fill="#1d1c18">BALLOT</text>
+      <line x1="28" y1="70" x2="222" y2="70" stroke="#dcd6c8" stroke-width="3"/>
+      <text x="28" y="126" font-size="19" fill="#1d1c18">a91f·3c07·e2d4</text>
+      <text x="28" y="156" font-size="19" fill="#1d1c18">58b0·7f1a·c6e9</text>
+      <text x="28" y="186" font-size="19" fill="#1d1c18">0d42·9be3·17fa</text>
+      <line x1="28" y1="236" x2="170" y2="236" stroke="#dcd6c8" stroke-width="3"/>
+      <line x1="28" y1="256" x2="130" y2="256" stroke="#dcd6c8" stroke-width="3"/>
+    </g>
+    <text x="865" y="238" text-anchor="middle" font-size="24" font-style="italic" fill="#1d1c18">the chain sees</text>
+    <text x="865" y="270" text-anchor="middle" font-size="24" font-style="italic" fill="#1d1c18">the right-hand side →</text>
+  </g>
+  <g font-family="Georgia, 'Times New Roman', serif" fill="#1d1c18">
+    <text x="60" y="130" font-size="54" font-weight="700">BallotBox</text>
+    <text x="60" y="178" font-size="26">Vote privately.</text>
+    <text x="60" y="212" font-size="26">Verify publicly.</text>
+  </g>
+  <text x="60" y="262" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="17" fill="#8a6012">LIVE ON MIDNIGHT PREPROD</text>
+  <line x1="0" y1="496" x2="1500" y2="496" stroke="#2f6b4b" stroke-width="8"/>
+</svg>

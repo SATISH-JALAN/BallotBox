@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-labelledby="t">
+  <title id="t">BallotBox</title>
+  <rect width="400" height="400" fill="#f2efe8"/>
+  <!-- ballot slip going into the box -->
+  <g transform="rotate(-6 200 150)">
+    <rect x="128" y="62" width="144" height="150" rx="6" fill="#fffdf8" stroke="#1d1c18" stroke-width="8"/>
+    <rect x="152" y="96" width="36" height="36" rx="3" fill="none" stroke="#1d1c18" stroke-width="7"/>
+    <path d="M158 114 l10 11 l24 -30" fill="none" stroke="#2f6b4b" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M204 106 h46 M204 124 h32 M152 160 h98 M152 180 h70" stroke="#dcd6c8" stroke-width="7" stroke-linecap="round"/>
+  </g>
+  <!-- box -->
+  <rect x="84" y="196" width="232" height="140" rx="10" fill="#1d1c18"/>
+  <rect x="84" y="196" width="232" height="26" rx="10" fill="#1d1c18"/>
+  <rect x="136" y="206" width="128" height="10" rx="5" fill="#f2efe8"/>
+  <text x="200" y="296" text-anchor="middle" font-family="ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace" font-size="30" font-weight="700" fill="#f2efe8" letter-spacing="1">0x7f…a3</text>
+</svg>

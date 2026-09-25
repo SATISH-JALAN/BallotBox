@@ -11,9 +11,9 @@ Where each requirement is met in this repository, and what still has to be done 
 | Working MVP on Preprod (verifiable address) | `npm run deploy` → [`deployments/preprod.json`](../deployments/) + README *Live on Preprod* | 🧑 deploy with a funded wallet |
 | Live demo link | Vercel Git integration, built by [`vercel.json`](../vercel.json) | ✅ <https://private-pooling.vercel.app> |
 | Documentation: README + setup + usage | [README](../README.md), [User guide](./USER_GUIDE.md), [Architecture](./ARCHITECTURE.md), [Deployment](./DEPLOYMENT.md), [Integration](../api/INTEGRATION.md) | ✅ |
-| CI/CD pipeline with passing runs | [`ci.yaml`](../.github/workflows/ci.yaml) + [`deploy.yaml`](../.github/workflows/deploy.yaml), badges in README | ✅ after push · 🧑 confirm green run |
+| CI/CD pipeline with passing runs | [`ci.yaml`](../.github/workflows/ci.yaml) + [`deploy.yaml`](../.github/workflows/deploy.yaml), badges in README | ✅ CI and Deploy green on `main` |
 | Product X profile linked in README | [Launch kit](./LAUNCH_KIT.md) | 🧑 create profile, replace `@REPLACE_WITH_HANDLE` |
-| Demo video of the MVP | Script below | 🧑 record |
+| Demo video of the MVP | [Walkthrough](https://drive.google.com/drive/folders/17Wp-457jbYBe5BfflG4Z4f4I7z0sTcat?usp=sharing), script below | ✅ |
 | ≥ 15 meaningful commits | 28 already, plus the split suggested below | ✅ |
 
 **Before submitting L4, search for and replace** `REPLACE_WITH_HANDLE` in `README.md`.
@@ -26,11 +26,12 @@ The contract address and the live app (<https://private-pooling.vercel.app>) are
 | [`PROPOSAL.md`](../PROPOSAL.md) | product, why Midnight, data model, mainnet feasibility | ✅ drafted — review the wording |
 | [`docs/USAGE.md`](./USAGE.md) | plain-English usage, first transaction, troubleshooting | ✅ |
 | [`docs/FEEDBACK.md`](./FEEDBACK.md) | collection method, raw log, themes, what changed, L6 improvements | ✅ process · 🧑 fill as testers arrive |
-| [`USERS.md`](../USERS.md) | 50 Preprod wallets (L5) | ✅ generated · 🧑 needs real testers |
+| [`USERS.md`](../USERS.md) | 50 Preprod wallets (L5) | ✅ 71 form testers listed · 🧑 on-chain check-ins still 0 |
 | [`LAUNCH_USERS.md`](../LAUNCH_USERS.md) | 70 Preprod wallets (L6) | ✅ generated · 🧑 needs real testers |
 | [`docs/LAUNCH_KIT.md`](./LAUNCH_KIT.md) | launch posts, recruitment, onboarding script, brand brief | ✅ |
 
-`USERS.md` and `LAUNCH_USERS.md` are never edited by hand:
+The on-chain tables in `USERS.md` and `LAUNCH_USERS.md` are never edited by hand. The
+feedback-form tester section below the `testers:start` marker is kept when the tables are rebuilt:
 
 ```bash
 npm run export-participants -- <address>   # read the participant set from chain state

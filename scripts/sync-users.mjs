@@ -66,7 +66,11 @@ Hex forms of the same keys are in
 [\`deployments/participants-${NETWORK}.json\`](./deployments/participants-${NETWORK}.json) and
 [\`.csv\`](./deployments/participants-${NETWORK}.csv).
 `;
-    await writeFile(path.join(ROOT, file), body);
+    // Keep the hand-collected tester section (feedback form), which chain state can't regenerate.
+    const existing = await readFile(path.join(ROOT, file), 'utf-8').catch(() => '');
+    const marker = existing.indexOf('<!-- testers:start');
+    const kept = marker === -1 ? '' : `\n${existing.slice(marker)}`;
+    await writeFile(path.join(ROOT, file), body + kept);
     console.log(`${file}: ${participants.length} / ${target}`);
   }
 };

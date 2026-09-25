@@ -394,9 +394,10 @@ Top changes made before inviting testers (iteration 0):
 
 ## Level 5 — User Validation
 
-- Target: **50** Preprod users · Current: **0** — see [USERS.md](./USERS.md)
-- Wallets come from the contract's participant set, exported from chain state:
-  `npm run export-participants -- <address> && npm run sync-users`
+- Target: **50** Preprod users · **71** testers sent a wallet address and rating through the
+  feedback form (average **8.9 / 10**). See [USERS.md](./USERS.md).
+- On-chain check-ins (**Count me as a tester**) are counted separately from the contract's
+  participant set: `npm run export-participants -- <address> && npm run sync-users`
 - Feedback log and iterations: [docs/FEEDBACK.md](./docs/FEEDBACK.md)
 
 ## Level 6 Users
@@ -412,7 +413,11 @@ and recruitment messages are in the [launch kit](./docs/LAUNCH_KIT.md).
 ## Brand Assets
 
 Palette, tagline, bio and banner concept: [launch kit § brand brief](./docs/LAUNCH_KIT.md#6-brand-brief).
-Logo and banner images: _to be added_.
+| Logo (400 × 400) | X banner (1500 × 500) |
+|---|---|
+| <img src="./docs/brand/logo.png" alt="BallotBox logo: a ticked ballot going into a box marked with a hash" width="160"> | <img src="./docs/brand/x-banner.png" alt="BallotBox X banner: the ticked ballot the voter sees next to the hashed ballot the chain sees" width="480"> |
+
+Source SVGs and PNG exports are in [`docs/brand/`](./docs/brand/).
 
 ## Contributing, security, license
 
