@@ -3,32 +3,32 @@ import { createTheme } from '@mui/material';
 /**
  * BallotBox design tokens.
  *
- * The product is a paper ballot that happens to be cryptographic, so the surface reads like
- * a printed form: warm paper, ink type, hairline rules, no gradients or glow. Colour is
+ * Midnight night-sky palette: cool off-white ground, deep navy ink and hairline rules, with
+ * the one dark, lit surface reserved for the hero. Colour is
  * reserved for meaning — affirm, against, caution, verified — so a coloured pixel always
  * says something. Components import these instead of hardcoding hex.
  */
 export const tokens = {
   /** Page ground. */
-  paper: '#f2efe8',
+  paper: '#f4f5fa',
   /** Cards and dialogs sitting on the page. */
-  surface: '#fbfaf6',
+  surface: '#fcfcff',
   /** Insets: code blocks, quiet panels, meter troughs. */
-  sunken: '#e9e5da',
+  sunken: '#e8eaf5',
   /** Primary type, and the fill of primary buttons. */
-  ink: '#1d1c18',
-  inkSecondary: '#4f4c44',
-  inkMuted: '#78736a',
-  inkFaint: '#9b968a',
+  ink: '#10132b',
+  inkSecondary: '#3d4264',
+  inkMuted: '#676c8f',
+  inkFaint: '#9095b4',
   /** Hairlines. Nothing in this UI needs a shadow. */
-  rule: '#dcd6c8',
-  ruleStrong: '#c3bcab',
+  rule: '#dcdfee',
+  ruleStrong: '#c1c5de',
   /** Meaningful colour only. */
-  affirm: '#2f6b4b',
-  against: '#a33f2c',
-  neutral: '#857f73',
-  caution: '#8a6012',
-  info: '#2b5b80',
+  affirm: '#15795d',
+  against: '#b3364a',
+  neutral: '#7b8099',
+  caution: '#8a5a0c',
+  info: '#4148d6',
 } as const;
 
 const sans = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
@@ -61,7 +61,7 @@ export const theme = createTheme({
   shape: { borderRadius: 6 },
   palette: {
     mode: 'light',
-    primary: { main: tokens.ink, contrastText: '#fbfaf6' },
+    primary: { main: tokens.ink, contrastText: '#fcfcff' },
     secondary: { main: tokens.inkMuted },
     background: { default: tokens.paper, paper: tokens.surface },
     success: { main: tokens.affirm },
@@ -89,7 +89,7 @@ export const theme = createTheme({
         contained: {
           backgroundColor: tokens.ink,
           color: tokens.surface,
-          '&:hover': { backgroundColor: '#000' },
+          '&:hover': { backgroundColor: '#05061a' },
           '&.Mui-disabled': { backgroundColor: tokens.sunken, color: tokens.inkFaint },
         },
         outlined: { borderColor: tokens.ruleStrong },
@@ -122,7 +122,7 @@ export const theme = createTheme({
           '&::-webkit-scrollbar-track': { background: tokens.paper },
           '&::-webkit-scrollbar-thumb': { background: tokens.ruleStrong, borderRadius: 5 },
         },
-        '::selection': { background: '#dfd6bd' },
+        '::selection': { background: '#d4d8fb' },
       },
     },
   },
