@@ -17,6 +17,12 @@ export const PRODUCT = {
     'Anonymous, verifiable polls. Your ballot is encrypted, your eligibility is proven in zero knowledge, and the result is checked on-chain.',
 } as const;
 
+/** Level 6 Preprod tester cohort, as published in USERS.md and docs/FEEDBACK.md. */
+export const TRACTION = {
+  testers: 71,
+  averageRating: '8.9',
+} as const;
+
 export const NETWORK_ID: string = import.meta.env.VITE_NETWORK_ID || 'preprod';
 
 /** The featured public poll the landing page points people at. */
