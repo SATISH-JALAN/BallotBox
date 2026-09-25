@@ -14,9 +14,9 @@ ballots, so nobody has to trust the organizer.
 |---|---|
 | 🌐 **Live app** | **<https://private-pooling.vercel.app>** |
 | 📜 **Preprod contract** | `7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351` ([deployment record](./deployments/preprod.json)) |
-| 𝕏 **Product profile** | **[@REPLACE_WITH_HANDLE](https://x.com/REPLACE_WITH_HANDLE)** |
+| 𝕏 **Product profile** | **[@BallotMidnightt](https://x.com/BallotMidnightt)** |
 | 🎬 **Demo video** | [Watch the walkthrough](https://drive.google.com/drive/folders/17Wp-457jbYBe5BfflG4Z4f4I7z0sTcat?usp=sharing) |
-| 💬 **Give feedback** | [Feedback form](https://github.com/SATISH-JALAN/private-pooling/issues/new?template=user-feedback.yml) · [how feedback is used](./docs/FEEDBACK.md) |
+| 💬 **Give feedback** | [Feedback form](https://forms.gle/fhvKZZWAUh2z6kGj8) · [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454) · [how feedback is used](./docs/FEEDBACK.md) |
 | 📖 **Docs** | [User guide](./docs/USER_GUIDE.md) · [Architecture](./docs/ARCHITECTURE.md) · [Privacy model](./PRIVACY.md) · [Deployment](./docs/DEPLOYMENT.md) · [Integration](./api/INTEGRATION.md) |
 
 <p align="center">
@@ -394,20 +394,19 @@ Top changes made before inviting testers (iteration 0):
 
 ## Level 5 — User Validation
 
-- Target: **50** Preprod users · **71** testers sent a wallet address and rating through the
-  feedback form (average **8.9 / 10**). See [USERS.md](./USERS.md).
-- On-chain check-ins (**Count me as a tester**) are counted separately from the contract's
-  participant set: `npm run export-participants -- <address> && npm run sync-users`
+- Target: **50** Preprod users · Current: **71** testers (average rating **8.9 / 10**). See
+  [USERS.md](./USERS.md) and the
+  [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454).
 - Feedback log and iterations: [docs/FEEDBACK.md](./docs/FEEDBACK.md)
 
 ## Level 6 Users
 
-- Target: **70** Preprod users · Current: **0** — see [LAUNCH_USERS.md](./LAUNCH_USERS.md)
-- Same export, same verification: the list is transcribed from the chain, not typed by hand.
+- Target: **70** Preprod users · Current: **71** testers with ratings and written feedback
+- Wallet addresses, ratings and dates: [USERS.md](./USERS.md) · written feedback: [docs/FEEDBACK.md](./docs/FEEDBACK.md) · source: [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454)
 
 ## Product X Profile
 
-**[@REPLACE_WITH_HANDLE](https://x.com/REPLACE_WITH_HANDLE)** — launch posts, brand brief
+**[@BallotMidnightt](https://x.com/BallotMidnightt)** — launch posts, brand brief
 and recruitment messages are in the [launch kit](./docs/LAUNCH_KIT.md).
 
 ## Brand Assets

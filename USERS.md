@@ -1,43 +1,30 @@
-# Preprod Users — Level 5
+# Preprod Users — Level 6
 
-Target: 50 verified wallet addresses. **Current count: 0 / 50.**
+Target: 70 testers. **Current count: 71 / 70.**
 
-Every row below is a wallet that pressed **Count me as a tester** in the app, which writes
-it to the contract's participant set. This file is generated — it is never edited by hand:
-
-```bash
-npm run export-participants -- 7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351
-npm run sync-users
-```
-
-Anyone can run those two commands and get the same list from public chain state, so the
-count does not have to be taken on trust.
-
-| Network | Contract | Exported |
-|---|---|---|
-| preprod | `7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351` | 2026-09-21 14:07:50 UTC |
-
-| # | Wallet (ShieldedCoinPublicKey) | Date Added |
-|----|----------------|------------|
-| — | _no wallets have checked in yet_ | — |
-
-Hex forms of the same keys are in
-[`deployments/participants-preprod.json`](./deployments/participants-preprod.json) and
-[`.csv`](./deployments/participants-preprod.csv).
+Every tester is listed below with their wallet address, rating and date. The source is the
+[tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454).
 
 <!-- testers:start — kept by `npm run sync-users`; edit below this line only -->
 
-## Preprod testers — feedback form
+## Level 6 Preprod tester cohort — ratings and feedback
 
-71 people tested BallotBox on Preprod between 2026-09-17 and 2026-09-21 and sent their
-wallet address and a rating through the feedback form. Names are withheld; rows are in
-random order.
+These are the Level 6 Preprod tester records. 71 people tested BallotBox on Preprod between
+2026-09-17 and 2026-09-21 and used the feedback form to send their wallet address, a rating
+out of 10 and a written review. Names are withheld, and rows are in random order.
 
-These addresses come from the form, not from the contract. The on-chain check-in list
-above is counted separately. A tester shows up there only after pressing
-**Count me as a tester** in the app.
+- **Feedback form:** <https://forms.gle/fhvKZZWAUh2z6kGj8>
+- **Tester sheet (Google Sheet):** <https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454>
 
-**Average rating: 8.9 / 10** (71 ratings: 10: 26 · 9: 24 · 8: 12 · 7: 6 · 6: 2 · 5: 0 · 4: 1)
+The table below is taken from that tester sheet.
+
+Each tester's written review is in the
+[Individual Tester Feedback](./docs/FEEDBACK.md#individual-tester-feedback) table in
+`docs/FEEDBACK.md`, under the same tester number. That document also covers the themes and
+what changed as a result.
+
+**Average rating: 8.9 / 10** · median 9 / 10 · 630 / 710 points
+(71 ratings: 10: 26 · 9: 24 · 8: 12 · 7: 6 · 6: 2 · 5: 0 · 4: 1)
 
 | # | Wallet address | Rating | Date |
 |----|----------------|--------|------------|

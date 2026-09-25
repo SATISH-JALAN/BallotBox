@@ -112,5 +112,5 @@ someone watching your network connection can infer, is in [PRIVACY.md](../PRIVAC
 | Proving takes more than 3 minutes | Normal on a slow machine for a vote; the timer keeps counting. Do not close the tab |
 | You cleared your browser and lost your role | Restore your key backup with 🔑. Without a backup, the old role cannot be recovered |
 
-Still stuck? [Open a feedback issue](https://github.com/SATISH-JALAN/private-pooling/issues/new?template=user-feedback.yml) —
+Still stuck? [Send feedback](https://forms.gle/fhvKZZWAUh2z6kGj8) —
 every report is read, and what changes because of it is logged in [FEEDBACK.md](./FEEDBACK.md).

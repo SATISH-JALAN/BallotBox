@@ -8,7 +8,7 @@ Preprod testers (Levels 5–6). Replace every `<…>` before posting.
 | Field | Suggested value |
 |---|---|
 | Name | **BallotBox** |
-| Handle | `@BallotBoxVote` (alternatives: `@BallotBoxZK`, `@ballotbox_mn`) |
+| Handle | [`@BallotMidnightt`](https://x.com/BallotMidnightt) |
 | Bio (≤160) | `Private, verifiable polls on @MidnightNtwrk. Your ballot is encrypted, your eligibility is proven in zero knowledge, the result is checked on-chain. Live on Preprod 👇` |
 | Website | `https://private-pooling.vercel.app` |
 | Location | `Midnight Preprod` |
@@ -18,7 +18,7 @@ Preprod testers (Levels 5–6). Replace every `<…>` before posting.
 
 After you create it:
 - [ ] Add the URL to the GitHub variable `VITE_X_URL` and re-run *Deploy*
-- [ ] Replace `@REPLACE_WITH_HANDLE` in `README.md`
+- [x] Replace `@REPLACE_WITH_HANDLE` in `README.md`
 - [ ] Put the X link in the repository's *About* section on GitHub
 
 ## 2. Launch thread (pin this)
@@ -57,7 +57,7 @@ After you create it:
 > https://github.com/SATISH-JALAN/private-pooling
 >
 > Tell us what broke. Every piece of feedback gets read, and we post what we change because of it. 👇
-> https://github.com/SATISH-JALAN/private-pooling/issues/new?template=user-feedback.yml
+> https://forms.gle/fhvKZZWAUh2z6kGj8
 
 ## 3. Building-in-public cadence
 

@@ -3,7 +3,7 @@
 This guide takes you from nothing installed to a cast vote in about 10 minutes. No
 blockchain experience is needed.
 
-**Live app:** <https://private-pooling.vercel.app> · **Stuck?** [Leave feedback](https://github.com/SATISH-JALAN/private-pooling/issues/new?template=user-feedback.yml)
+**Live app:** <https://private-pooling.vercel.app> · **Stuck?** [Leave feedback](https://forms.gle/fhvKZZWAUh2z6kGj8)
 
 - [What you need](#what-you-need)
 - [Step 1 — Install a wallet](#step-1--install-a-wallet)
