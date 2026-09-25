@@ -7,7 +7,7 @@ import { FeedbackButton } from './components/FeedbackButton';
 import { GettingStarted } from './components/GettingStarted';
 import { Hero } from './components/landing/Hero';
 import { Section } from './components/landing/Section';
-import { CtaBand, Faq, Features, HowItWorks, StatsStrip } from './components/landing/Sections';
+import { CtaBand, Faq, Features, HowItWorks } from './components/landing/Sections';
 import { FEATURED_CONTRACT_ADDRESS, pollFromUrl } from './config/product';
 import { type BoardDeployment } from './contexts';
 import { useDeployedBoardContext } from './hooks';
@@ -43,7 +43,6 @@ const App: React.FC = () => {
   return (
     <MainLayout>
       <Hero primaryLabel={primaryLabel} onPrimary={openSpotlight} />
-      <StatsStrip />
 
       <Section
         id="app"

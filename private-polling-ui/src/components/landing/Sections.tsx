@@ -10,53 +10,9 @@ import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import BackupOutlinedIcon from '@mui/icons-material/BackupOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { LINKS, TRACTION } from '../../config/product';
+import { LINKS } from '../../config/product';
 import { microLabelSx, tokens } from '../../config/theme';
-import { containerSx, Section } from './Section';
-
-// ─── Traction strip ──────────────────────────────────────────────────────────
-
-const STATS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: `${TRACTION.testers}`, label: 'Preprod testers' },
-  { value: `${TRACTION.averageRating}/10`, label: 'Average tester rating' },
-  { value: '0', label: 'Ballots ever decrypted one by one' },
-  { value: '100%', label: 'Of results checked on-chain' },
-];
-
-export const StatsStrip: React.FC = () => (
-  <Box
-    component="section"
-    data-testid="stats"
-    sx={{ borderBottom: `1px solid ${tokens.rule}`, backgroundColor: tokens.surface }}
-  >
-    <Box
-      sx={{
-        ...containerSx,
-        display: 'grid',
-        gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-      }}
-    >
-      {STATS.map(({ value, label }, i) => (
-        <Box
-          key={label}
-          sx={{
-            py: { xs: 3, md: 4 },
-            px: { xs: 1, md: 3 },
-            borderLeft: { md: i === 0 ? 'none' : `1px solid ${tokens.rule}` },
-            borderTop: { xs: i >= 2 ? `1px solid ${tokens.rule}` : 'none', md: 'none' },
-          }}
-        >
-          <Typography variant="h3" component="p" sx={{ fontSize: { xs: '1.9rem', md: '2.4rem' }, lineHeight: 1 }}>
-            {value}
-          </Typography>
-          <Typography variant="caption" sx={{ color: tokens.inkMuted, display: 'block', mt: 1, fontWeight: 600 }}>
-            {label}
-          </Typography>
-        </Box>
-      ))}
-    </Box>
-  </Box>
-);
+import { Section } from './Section';
 
 // ─── Features ────────────────────────────────────────────────────────────────
 
