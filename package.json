@@ -82,7 +82,7 @@
   "description": "BallotBox — anonymous, verifiable polls on the Midnight network",
   "repository": {
     "type": "git",
-    "url": "https://github.com/SATISH-JALAN/private-pooling.git"
+    "url": "https://github.com/SATISH-JALAN/BallotBox.git"
   },
-  "homepage": "https://github.com/SATISH-JALAN/private-pooling#readme"
+  "homepage": "https://github.com/SATISH-JALAN/BallotBox#readme"
 }

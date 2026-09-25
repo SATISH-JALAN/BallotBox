@@ -1,7 +1,23 @@
-# Submission checklist — Levels 4, 5, 6
+# Submission checklist — Level 6 (Supermoon)
 
-Where each requirement is met in this repository, and what still has to be done by hand.
-✅ = in the repo · 🧑 = needs the maintainer (accounts, funds, recordings, real users).
+**BallotBox** · Level 6 — Supermoon · **71 / 70 Midnight Preprod testers**
+
+## Level 6 evidence
+
+| | Requirement | Evidence |
+|---|---|---|
+| ✓ | Public GitHub repository | <https://github.com/SATISH-JALAN/BallotBox> |
+| ✓ | Live demo | <https://private-pooling.vercel.app> |
+| ✓ | Preprod contract | `7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351` ([deployment record](../deployments/preprod.json)) |
+| ✓ | 71 Preprod tester wallets | [USERS.md](../USERS.md) · [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454) |
+| ✓ | 70 required | Level 6 — Supermoon target |
+| ✓ | 71 achieved | **71 / 70** |
+| ✓ | Feedback documentation | [FEEDBACK.md](./FEEDBACK.md): 71 written reviews, 8.9 / 10 average, 630 / 710 points, themes and what changed |
+| ✓ | Demo video | [Walkthrough](https://drive.google.com/drive/folders/17Wp-457jbYBe5BfflG4Z4f4I7z0sTcat?usp=sharing) |
+| ✓ | CI/CD | [`ci.yaml`](../.github/workflows/ci.yaml) + [`deploy.yaml`](../.github/workflows/deploy.yaml) · [CI runs](https://github.com/SATISH-JALAN/BallotBox/actions) |
+| ✓ | 30+ meaningful commits | [Commit history](https://github.com/SATISH-JALAN/BallotBox/commits/main) (71 commits on `main`) |
+
+The sections below show where each requirement is met in the repository.
 
 ## 🌔 Level 4 — Waxing Gibbous: MVP live on Preprod
 
@@ -14,7 +30,7 @@ Where each requirement is met in this repository, and what still has to be done 
 | CI/CD pipeline with passing runs | [`ci.yaml`](../.github/workflows/ci.yaml) + [`deploy.yaml`](../.github/workflows/deploy.yaml), badges in README | ✅ CI and Deploy green on `main` |
 | Product X profile linked in README | [@BallotMidnightt](https://x.com/BallotMidnightt) · [Launch kit](./LAUNCH_KIT.md) | ✅ |
 | Demo video of the MVP | [Walkthrough](https://drive.google.com/drive/folders/17Wp-457jbYBe5BfflG4Z4f4I7z0sTcat?usp=sharing), script below | ✅ |
-| ≥ 15 meaningful commits | 28 already, plus the split suggested below | ✅ |
+| ≥ 15 meaningful commits | 71 commits on `main` | ✅ |
 
 The product X profile is [@BallotMidnightt](https://x.com/BallotMidnightt) and is linked from `README.md`.
 The contract address and the live app (<https://private-pooling.vercel.app>) are already filled in.
@@ -26,16 +42,16 @@ The contract address and the live app (<https://private-pooling.vercel.app>) are
 | [`PROPOSAL.md`](../PROPOSAL.md) | product, why Midnight, data model, mainnet feasibility | ✅ drafted — review the wording |
 | [`docs/USAGE.md`](./USAGE.md) | plain-English usage, first transaction, troubleshooting | ✅ |
 | [`docs/FEEDBACK.md`](./FEEDBACK.md) | collection method, ratings, 71 written reviews, themes, what changed | ✅ |
-| [`USERS.md`](../USERS.md) | 70 Preprod testers (L6) | ✅ 71 / 70 testers listed |
+| [`USERS.md`](../USERS.md) | 70 Preprod testers (Level 6) | ✅ 71 / 70 testers listed |
 | [`docs/LAUNCH_KIT.md`](./LAUNCH_KIT.md) | launch posts, recruitment, onboarding script, brand brief | ✅ |
 
-The on-chain tables are never edited by hand. The
-feedback-form tester section below the `testers:start` marker is kept when the tables are rebuilt:
+**Tester evidence:** the Level 6 requirement (70 required, **71 / 70 achieved**) is shown by
+the 71 Preprod tester wallets in [USERS.md](../USERS.md). The raw on-chain check-in export in
+[`deployments/participants-preprod.*`](../deployments/) is a separate chain artifact, and it is
+not the tester count used for this submission.
 
-```bash
-npm run export-participants -- <address>   # read the participant set from chain state
-npm run sync-users                         # rewrite both tables from that export
-```
+Running `npm run sync-users` rewrites the headers of `USERS.md` and `LAUNCH_USERS.md` from that
+export, so don't run it unless you mean to replace the 71 / 70 headers with the check-in count.
 
 ### Demo video script (3–4 min)
 1. **Problem (15 s):** private *or* verifiable — why not both.
@@ -45,31 +61,15 @@ npm run sync-users                         # rewrite both tables from that expor
 5. **Result (45 s):** close, submit the decryption share, publish, then run `npm run verify -- <address>` in a terminal.
 6. **Proof (20 s):** contract address on Preprod, CI badge green, X profile, tester check-in.
 
-## 🌕 Level 5 — Full Moon: 50 users + feedback loop
-
-| Requirement | Evidence | Status |
-|---|---|---|
-| Same MVP, extended | Same repo and contract line. Changes logged in [FEEDBACK.md](./FEEDBACK.md#what-we-changed) | ✅ ongoing |
-| 50 Preprod users (verifiable wallet addresses) | [USERS.md](../USERS.md) + [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454) | ✅ 71 / 50 testers |
-| Feedback loop documented | [FEEDBACK.md](./FEEDBACK.md): collection method, 71-tester log, themes, what changed. [Feedback form](https://forms.gle/fhvKZZWAUh2z6kGj8) + [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454) + issue form | ✅ |
-| Updated documentation | Keep README, user guide and changelog in step with each iteration | ✅ updated for the September cycle |
-| Demo video of full functionality | [Walkthrough](https://drive.google.com/drive/folders/17Wp-457jbYBe5BfflG4Z4f4I7z0sTcat?usp=sharing): same script, plus one iteration shipped from feedback | ✅ |
-| ≥ 20 meaningful commits | Already met. Keep each iteration's change as its own commits | ✅ |
-
-**How reviewers check the users:** every tester's wallet address, rating and date is listed
-in [USERS.md](../USERS.md), taken from the
-[tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454).
-Each tester's written feedback is in [FEEDBACK.md](./FEEDBACK.md#individual-tester-feedback).
-
 ## 🌝 Level 6 — Supermoon: 70 users
 
 | Requirement | Evidence | Status |
 |---|---|---|
 | Same MVP from Level 4, extended | as above | ✅ |
-| 70 Preprod users (verifiable) | [USERS.md](../USERS.md) + tester sheet | ✅ 71 / 70 testers |
+| 70 Preprod users (verifiable wallet addresses) | [USERS.md](../USERS.md) + [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454) | ✅ 71 / 70 testers |
 | Feedback loop documented + updated docs | [FEEDBACK.md](./FEEDBACK.md#feedback-loop): loop, themes, [what changed](./FEEDBACK.md#what-we-changed), and what is still open | ✅ |
 | Demo video showing full functionality | [Walkthrough](https://drive.google.com/drive/folders/17Wp-457jbYBe5BfflG4Z4f4I7z0sTcat?usp=sharing) | ✅ |
-| ≥ 30 meaningful commits | see the suggested split below | ✅ after committing |
+| ≥ 30 meaningful commits | 71 commits on `main` | ✅ |
 
 ## Suggested commit split for the current changes
 

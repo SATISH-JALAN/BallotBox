@@ -12,7 +12,7 @@ and is not audited. Don't use it for high-stakes votes.
 ## Reporting a vulnerability
 
 Please **don't open a public issue.** Report privately with
-[GitHub private vulnerability reporting](https://github.com/SATISH-JALAN/private-pooling/security/advisories/new).
+[GitHub private vulnerability reporting](https://github.com/SATISH-JALAN/BallotBox/security/advisories/new).
 
 Especially relevant:
 

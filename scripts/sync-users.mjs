@@ -16,7 +16,7 @@ const NETWORK = process.env.NETWORK_ID ?? 'preprod';
 const EXPORT = path.join(ROOT, 'deployments', `participants-${NETWORK}.json`);
 
 const TARGETS = [
-  { file: 'USERS.md', title: `Preprod Users — Level 5`, target: 50 },
+  { file: 'USERS.md', title: `Level 6 Users — Preprod`, target: 70 },
   { file: 'LAUNCH_USERS.md', title: `Level 6 Users — Preprod`, target: 70 },
 ];
 

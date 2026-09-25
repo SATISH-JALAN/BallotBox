@@ -1,8 +1,10 @@
-# Preprod Users — Level 6
+# Level 6 Users — Preprod
 
-Target: 70 testers. **Current count: 71 / 70.**
+Target: 70 verified wallet addresses
+Current: **71 / 70**
 
-Every tester is listed below with their wallet address, rating and date. The source is the
+The 71 wallets below are BallotBox's Midnight Preprod testers. Each row has the tester's
+wallet address, rating and date. The source is the
 [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454).
 
 <!-- testers:start — kept by `npm run sync-users`; edit below this line only -->

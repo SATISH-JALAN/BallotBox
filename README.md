@@ -1,7 +1,7 @@
 # BallotBox — private, verifiable polls on Midnight 🗳️
 
-[![CI](https://github.com/SATISH-JALAN/private-pooling/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/SATISH-JALAN/private-pooling/actions/workflows/ci.yaml)
-[![Deploy](https://github.com/SATISH-JALAN/private-pooling/actions/workflows/deploy.yaml/badge.svg?branch=main)](https://github.com/SATISH-JALAN/private-pooling/actions/workflows/deploy.yaml)
+[![CI](https://github.com/SATISH-JALAN/BallotBox/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/SATISH-JALAN/BallotBox/actions/workflows/ci.yaml)
+[![Deploy](https://github.com/SATISH-JALAN/BallotBox/actions/workflows/deploy.yaml/badge.svg?branch=main)](https://github.com/SATISH-JALAN/BallotBox/actions/workflows/deploy.yaml)
 [![Network: Preprod](https://img.shields.io/badge/Midnight-Preprod-2f6b4b)](#live-on-preprod)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 
@@ -16,6 +16,7 @@ ballots, so nobody has to trust the organizer.
 | 📜 **Preprod contract** | `7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351` ([deployment record](./deployments/preprod.json)) |
 | 𝕏 **Product profile** | **[@BallotMidnightt](https://x.com/BallotMidnightt)** |
 | 🎬 **Demo video** | [Watch the walkthrough](https://drive.google.com/drive/folders/17Wp-457jbYBe5BfflG4Z4f4I7z0sTcat?usp=sharing) |
+| 🙋 **Level 6** | **71 / 70** Midnight Preprod testers — [USERS.md](./USERS.md) · [feedback](./docs/FEEDBACK.md) · [submission](./docs/SUBMISSION.md) |
 | 💬 **Give feedback** | [Feedback form](https://forms.gle/fhvKZZWAUh2z6kGj8) · [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454) · [how feedback is used](./docs/FEEDBACK.md) |
 | 📖 **Docs** | [User guide](./docs/USER_GUIDE.md) · [Architecture](./docs/ARCHITECTURE.md) · [Privacy model](./PRIVACY.md) · [Deployment](./docs/DEPLOYMENT.md) · [Integration](./api/INTEGRATION.md) |
 
@@ -47,7 +48,7 @@ ballots, so nobody has to trust the organizer.
 - [Roadmap](#roadmap)
 - [Troubleshooting](#troubleshooting)
 - [Product Proposal](#product-proposal) · [Usage Guide](#usage-guide) · [Feedback & Iterations](#feedback--iterations)
-- [Level 5 — User Validation](#level-5--user-validation) · [Level 6 Users](#level-6-users)
+- [Level 6 — Supermoon: 71 Preprod testers](#level-6--supermoon-71-preprod-testers)
 - [Product X Profile](#product-x-profile) · [Brand Assets](#brand-assets)
 - [Contributing, security, license](#contributing-security-license)
 
@@ -156,7 +157,8 @@ Check it yourself, with no wallet: `npm run verify -- 7423df36535c53ec590fd268f3
 | Deploy transaction | see [`deployments/preprod.json`](./deployments/preprod.json) |
 | Web app | <https://private-pooling.vercel.app> |
 | Contract source | [`contract/src/private-polling.compact`](./contract/src/private-polling.compact) (Compact 0.23 / compiler 0.31.0) |
-| Tester list | [`deployments/participants-preprod.json`](./deployments/participants-preprod.json) (regenerate with `npm run export-participants -- <address>`) |
+| Tester list | [USERS.md](./USERS.md): 71 / 70 Preprod testers |
+| Check-in export | [`deployments/participants-preprod.json`](./deployments/participants-preprod.json) (regenerate with `npm run export-participants -- <address>`) |
 
 Anyone can check the deployment and the result independently, with no wallet:
 
@@ -191,8 +193,8 @@ On Windows you only need WSL with an Ubuntu distro, plus `unzip` inside it (`wsl
 ### 1 · Install, compile, test
 
 ```bash
-git clone https://github.com/SATISH-JALAN/private-pooling.git
-cd private-pooling
+git clone https://github.com/SATISH-JALAN/BallotBox.git
+cd BallotBox
 npm ci --legacy-peer-deps   # one install for all workspaces
 npm run compact             # compile the contract → contract/src/managed (≈1 min)
 npm run build               # contract → api → cli → ui
@@ -275,7 +277,7 @@ npm run verify -- <addr>  # recheck a published tally from public chain data alo
 ## Project structure
 
 ```
-private-pooling/
+BallotBox/
 ├── contract/                 Compact smart contract + simulator tests
 │   └── src/private-polling.compact · witnesses.ts · test/
 ├── api/                      Shared TypeScript API (used by UI and CLI) + tally decryption
@@ -392,17 +394,19 @@ Top changes made before inviting testers (iteration 0):
 - **Errors say what to do.** "Application is not authorized" became instructions about
   unlocking the wallet, switching to Preprod, or starting the proof server.
 
-## Level 5 — User Validation
+## Level 6 — Supermoon: 71 Preprod testers
 
-- Target: **50** Preprod users · Current: **71** testers (average rating **8.9 / 10**). See
-  [USERS.md](./USERS.md) and the
-  [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454).
-- Feedback log and iterations: [docs/FEEDBACK.md](./docs/FEEDBACK.md)
-
-## Level 6 Users
-
-- Target: **70** Preprod users · Current: **71** testers with ratings and written feedback
-- Wallet addresses, ratings and dates: [USERS.md](./USERS.md) · written feedback: [docs/FEEDBACK.md](./docs/FEEDBACK.md) · source: [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454)
+| | |
+|---|---|
+| Level | **Level 6 — Supermoon** |
+| Preprod testers required | **70** |
+| Preprod testers achieved | **71 / 70** (average rating **8.9 / 10**, median 9) |
+| Tester wallets, ratings and dates | [USERS.md](./USERS.md) · [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454) |
+| Written feedback and iterations | [docs/FEEDBACK.md](./docs/FEEDBACK.md) |
+| Submission evidence | [docs/SUBMISSION.md](./docs/SUBMISSION.md) |
+| Live demo | <https://private-pooling.vercel.app> |
+| Preprod contract | `7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351` ([deployment record](./deployments/preprod.json)) |
+| CI/CD | [CI](https://github.com/SATISH-JALAN/BallotBox/actions/workflows/ci.yaml) · [Deploy](https://github.com/SATISH-JALAN/BallotBox/actions/workflows/deploy.yaml) |
 
 ## Product X Profile
 

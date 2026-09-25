@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Thanks for testing BallotBox! Every answer here is read and triaged — see
-        [docs/FEEDBACK.md](https://github.com/SATISH-JALAN/private-pooling/blob/main/docs/FEEDBACK.md)
+        [docs/FEEDBACK.md](https://github.com/SATISH-JALAN/BallotBox/blob/main/docs/FEEDBACK.md)
         for how feedback turns into changes.
 
         **Never paste a wallet seed or a key backup file here.**

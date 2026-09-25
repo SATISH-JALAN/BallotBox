@@ -32,7 +32,7 @@ and again, and what changed in BallotBox as a result.
 
 | Channel | What it captures | Where it lands |
 |---|---|---|
-| **In-app Feedback button** (visible on every page) | Wallet address, rating out of 10, written review, and where the tester got stuck | The [GitHub feedback issue form](https://github.com/SATISH-JALAN/private-pooling/issues/new?template=user-feedback.yml) |
+| **In-app Feedback button** (visible on every page) | Wallet address, rating out of 10, written review, and where the tester got stuck | The [GitHub feedback issue form](https://github.com/SATISH-JALAN/BallotBox/issues/new?template=user-feedback.yml) |
 | **BallotBox feedback form** (linked from the README and docs) | Wallet address, rating out of 10 and written review | The [BallotBox feedback form](https://forms.gle/fhvKZZWAUh2z6kGj8), whose responses go to the [tester sheet](https://docs.google.com/spreadsheets/d/1J-nT1Xgwcj4PxhvRjP3K-VFehBlQUnCMYxksyBgtWSk/edit?resourcekey=&gid=1893711454#gid=1893711454) |
 | **GitHub issues** | Bug reports, feature requests and documentation improvements | Repository issue templates (`.github/ISSUE_TEMPLATE/`) |
 | **On-chain signals** | Enrolments, ballots and tester check-ins | `npm run verify` and `npm run export-participants` snapshots |

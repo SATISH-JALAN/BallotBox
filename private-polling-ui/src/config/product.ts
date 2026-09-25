@@ -23,12 +23,12 @@ export const NETWORK_ID: string = import.meta.env.VITE_NETWORK_ID || 'preprod';
 export const FEATURED_CONTRACT_ADDRESS = optional(import.meta.env.VITE_CONTRACT_ADDRESS);
 
 export const LINKS = {
-  github: optional(import.meta.env.VITE_GITHUB_URL) ?? 'https://github.com/SATISH-JALAN/private-pooling',
+  github: optional(import.meta.env.VITE_GITHUB_URL) ?? 'https://github.com/SATISH-JALAN/BallotBox',
   x: optional(import.meta.env.VITE_X_URL),
   feedbackForm: optional(import.meta.env.VITE_FEEDBACK_URL),
   userGuide:
     optional(import.meta.env.VITE_USER_GUIDE_URL) ??
-    'https://github.com/SATISH-JALAN/private-pooling/blob/main/docs/USER_GUIDE.md',
+    'https://github.com/SATISH-JALAN/BallotBox/blob/main/docs/USER_GUIDE.md',
   /** e.g. https://explorer.example/tx/{tx} — `{tx}` is replaced with the transaction hash. */
   explorerTx: optional(import.meta.env.VITE_EXPLORER_TX_URL),
   faucet: 'https://faucet.preprod.midnight.network/',

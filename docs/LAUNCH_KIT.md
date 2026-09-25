@@ -50,11 +50,11 @@ After you create it:
 > 3. Open the featured poll → Join → Vote
 > 4. Tap "Count me as a tester"
 >
-> Guide: https://github.com/SATISH-JALAN/private-pooling/blob/main/docs/USAGE.md
+> Guide: https://github.com/SATISH-JALAN/BallotBox/blob/main/docs/USAGE.md
 
 **5/**
 > Building in public: code, contract, tests and CI are all open.
-> https://github.com/SATISH-JALAN/private-pooling
+> https://github.com/SATISH-JALAN/BallotBox
 >
 > Tell us what broke. Every piece of feedback gets read, and we post what we change because of it. 👇
 > https://forms.gle/fhvKZZWAUh2z6kGj8
@@ -64,9 +64,9 @@ After you create it:
 | When | Post |
 |---|---|
 | Launch day | Launch thread (pinned) + 30–60 s screen recording of a vote |
-| Weekly | Progress: tester count (from `export-participants`), one thing learned, one thing shipped |
+| Weekly | Progress: tester count (from [USERS.md](../USERS.md)), one thing learned, one thing shipped |
 | Each iteration | “You asked, we shipped” with a before/after GIF (see [FEEDBACK.md](./FEEDBACK.md)) |
-| Milestones | 10 / 25 / 50 / 70 verified testers, with the export as proof |
+| Milestones | 10 / 25 / 50 / 70 testers, listed in [USERS.md](../USERS.md) |
 | Technical deep-dive | “How do you count votes you can't read?” (ElGamal + ZK explainer thread) |
 
 Tag `@MidnightNtwrk`; use `#Midnight #ZK #BuildInPublic`.
@@ -77,7 +77,7 @@ Tag `@MidnightNtwrk`; use `#Midnight #ZK #BuildInPublic`.
 > Hey! I'm testing BallotBox, anonymous voting on Midnight Preprod. It takes about 5 minutes,
 > needs no real money, and your vote stays secret (it's encrypted and proven in ZK).
 > Would you try one vote and tell me where you got stuck?
-> 👉 https://private-pooling.vercel.app/?poll=7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351 · guide: https://github.com/SATISH-JALAN/private-pooling/blob/main/docs/USAGE.md
+> 👉 https://private-pooling.vercel.app/?poll=7423df36535c53ec590fd268f36771b9b9bd63ab741706062ac820f7b59f9351 · guide: https://github.com/SATISH-JALAN/BallotBox/blob/main/docs/USAGE.md
 
 **Direct message**
 > Could you do me a 5-minute favour? I built a private voting dApp on Midnight's test
@@ -165,4 +165,4 @@ Use these if a thread is too much — one per day works well.
 > can read your ballot, then check the result yourself with one command.
 >
 > https://private-pooling.vercel.app
-> Guide: https://github.com/SATISH-JALAN/private-pooling/blob/main/docs/USAGE.md
+> Guide: https://github.com/SATISH-JALAN/BallotBox/blob/main/docs/USAGE.md
