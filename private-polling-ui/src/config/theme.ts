@@ -33,6 +33,8 @@ export const tokens = {
 
 const sans = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 const serif = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif';
+/** Hero display face: a light italic serif, loaded from Google Fonts in index.html. */
+export const display = '"Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif';
 export const mono = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
 /** Small uppercase label used to title a section without shouting. */
